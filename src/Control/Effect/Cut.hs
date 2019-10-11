@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving #-}
 
 {- | Provides an effect to delimit backtracking in a given nondeterministic context. This effect is used in concert with 'Control.Effect.NonDet.NonDet'.
 
@@ -36,7 +36,7 @@ instance HFunctor Cut where
   hmap f (Call m k) = Call (f m) (f . k)
   {-# INLINE hmap #-}
 
-instance Effect Cut where
+instance Functor f => Effect f Cut where
   handle _     _       Cutfail    = Cutfail
   handle state handler (Call m k) = Call (handler (m <$ state)) (handler . fmap k)
   {-# INLINE handle #-}

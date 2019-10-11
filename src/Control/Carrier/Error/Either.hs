@@ -41,7 +41,7 @@ instance (Alternative m, Monad m) => Alternative (ErrorC e m) where
 -- | 'ErrorC' passes 'MonadPlus' operations along to the underlying monad @m@, rather than combining errors à la 'ExceptT'.
 instance (Alternative m, Monad m) => MonadPlus (ErrorC e m)
 
-instance (Carrier sig m, Effect sig) => Carrier (Error e :+: sig) (ErrorC e m) where
+instance (Carrier sig m, Effect (Either e) sig) => Carrier (Error e :+: sig) (ErrorC e m) where
   eff (L (Throw e))     = ErrorC (ExceptT (pure (Left e)))
   eff (L (Catch m h k)) = ErrorC (ExceptT (runError m >>= either (either (pure . Left) (runError . k) <=< runError . h) (runError . k)))
   eff (R other)         = ErrorC (ExceptT (eff (handle (Right ()) (either (pure . Left) runError) other)))

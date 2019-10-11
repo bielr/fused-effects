@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, FlexibleContexts, KindSignatures #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, KindSignatures #-}
 
 {- | An effect modelling nondeterminism without choice (success or failure).
 
@@ -27,7 +27,7 @@ data Empty (m :: * -> *) k = Empty
   deriving (Functor, Generic1)
 
 instance HFunctor Empty
-instance Effect   Empty
+instance Effect f Empty
 
 -- | Abort the computation.
 --

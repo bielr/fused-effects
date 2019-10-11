@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving #-}
 
 {- | An effect that provides a "bracket"-style function to acquire, use, and automatically release resources, in the manner of the @resourcet@ package. The 'Control.Carrier.Resource.ResourceC' carrier ensures that resources are properly released in the presence of asynchronous exceptions.
 
@@ -31,7 +31,7 @@ instance HFunctor Resource where
   hmap f (Resource acquire release use k) = Resource (f acquire) (f . release) (f . use) (f . k)
   hmap f (OnError acquire release use k)  = OnError  (f acquire) (f . release) (f . use) (f . k)
 
-instance Effect Resource where
+instance Functor f => Effect f Resource where
   handle state handler (Resource acquire release use k) = Resource (handler (acquire <$ state)) (handler . fmap release) (handler . fmap use) (handler . fmap k)
   handle state handler (OnError acquire release use k)  = OnError  (handler (acquire <$ state)) (handler . fmap release) (handler . fmap use) (handler . fmap k)
 

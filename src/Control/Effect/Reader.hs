@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving #-}
 
 {- | An effect providing access to an immutable (but locally-modifiable) context value.
 
@@ -33,7 +33,7 @@ instance HFunctor (Reader r) where
   hmap f (Ask k)       = Ask           (f . k)
   hmap f (Local g m k) = Local g (f m) (f . k)
 
-instance Effect (Reader r) where
+instance Functor f => Effect f (Reader r) where
   handle state handler (Ask k)       = Ask (handler . (<$ state) . k)
   handle state handler (Local f m k) = Local f (handler (m <$ state)) (handler . fmap k)
 

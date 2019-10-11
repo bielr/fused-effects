@@ -79,7 +79,7 @@ example = testGroup "parser"
 
 data Symbol m k = Satisfy (Char -> Bool) (Char -> m k)
   deriving stock (Functor, Generic1)
-  deriving anyclass (HFunctor, Effect)
+  deriving anyclass (HFunctor, Effect f)
 
 satisfy :: Has Symbol sig m => (Char -> Bool) -> m Char
 satisfy p = send (Satisfy p pure)
@@ -102,7 +102,7 @@ parse input = (>>= exhaustive) . runState input . runParseC
 newtype ParseC m a = ParseC { runParseC :: StateC String m a }
   deriving newtype (Alternative, Applicative, Functor, Monad)
 
-instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Symbol :+: sig) (ParseC m) where
+instance (Alternative m, Carrier sig m, Effect ((,) String) sig) => Carrier (Symbol :+: sig) (ParseC m) where
   eff (L (Satisfy p k)) = do
     input <- ParseC get
     case input of

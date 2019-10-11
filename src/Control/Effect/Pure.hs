@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, KindSignatures #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, FlexibleInstances, MultiParamTypeClasses, KindSignatures #-}
 
 {- | Provides a mechanism to kick off the evaluation of an effect stack in a pure computation.
 
@@ -22,4 +22,4 @@ data Pure (m :: * -> *) k
   deriving (Functor, Generic1)
 
 instance HFunctor Pure
-instance Effect   Pure
+instance Effect f Pure

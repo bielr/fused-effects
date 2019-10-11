@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving #-}
 
 {- | This effect provides source to an infinite source of 'Int' values, suitable for generating "fresh" values to uniquely identify data without needing to invoke random numbers or impure IO.
 
@@ -29,7 +29,7 @@ instance HFunctor Fresh where
   hmap f (Fresh   k) = Fresh       (f . k)
   hmap f (Reset m k) = Reset (f m) (f . k)
 
-instance Effect Fresh where
+instance Functor f => Effect f Fresh where
   handle state handler (Fresh   k) = Fresh (handler . (<$ state) . k)
   handle state handler (Reset m k) = Reset (handler (m <$ state)) (handler . fmap k)
 

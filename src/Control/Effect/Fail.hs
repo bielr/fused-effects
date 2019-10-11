@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, KindSignatures #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, FlexibleInstances, KindSignatures, MultiParamTypeClasses #-}
 
 {- | An effect providing failure with an error message.
 
@@ -26,4 +26,4 @@ newtype Fail (m :: * -> *) k = Fail String
   deriving (Functor, Generic1)
 
 instance HFunctor Fail
-instance Effect   Fail
+instance Effect f Fail

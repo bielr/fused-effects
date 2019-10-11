@@ -31,7 +31,7 @@ data Teletype m k
   = Read (String -> m k)
   | Write String (m k)
   deriving stock (Functor, Generic1)
-  deriving anyclass (HFunctor, Effect)
+  deriving anyclass (HFunctor, Effect f)
 
 read :: Has Teletype sig m => m String
 read = send (Read pure)
@@ -58,7 +58,7 @@ runTeletypeRet i = runWriter . runState i . runTeletypeRetC
 newtype TeletypeRetC m a = TeletypeRetC { runTeletypeRetC :: StateC [String] (WriterC [String] m) a }
   deriving newtype (Applicative, Functor, Monad)
 
-instance (Carrier sig m, Effect sig) => Carrier (Teletype :+: sig) (TeletypeRetC m) where
+instance (Carrier sig m, Effect ((,) [String]) sig) => Carrier (Teletype :+: sig) (TeletypeRetC m) where
   eff (L (Read    k)) = do
     i <- TeletypeRetC get
     case i of

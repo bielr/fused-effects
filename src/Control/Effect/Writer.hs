@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, StandaloneDeriving #-}
 
 {- | An effect allowing writes to an accumulated quantity alongside a computed value. A 'Writer' @w@ effect keeps track of a monoidal datum of type @w@ and strictly appends to that monoidal value with the 'tell' effect. Writes to that value can be detected and intercepted with the 'listen' and 'censor' effects.
 
@@ -35,7 +35,7 @@ instance HFunctor (Writer w) where
   hmap f (Censor g m k) = Censor g (f m) (f     . k)
   {-# INLINE hmap #-}
 
-instance Effect (Writer w) where
+instance Functor f => Effect f (Writer w) where
   handle state handler (Tell w     k) = Tell w                          (handler (k <$ state))
   handle state handler (Listen   m k) = Listen   (handler (m <$ state)) (fmap handler . fmap . k)
   handle state handler (Censor f m k) = Censor f (handler (m <$ state)) (handler . fmap k)

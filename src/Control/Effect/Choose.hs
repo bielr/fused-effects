@@ -37,7 +37,7 @@ newtype Choose m k
   deriving (Functor, Generic1)
 
 instance HFunctor Choose
-instance Effect   Choose
+instance Functor f => Effect f Choose
 
 -- | Nondeterministically choose between two computations.
 --

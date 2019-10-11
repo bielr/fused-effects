@@ -13,6 +13,7 @@ module Control.Carrier.NonDet.Church
 , runNonDetA
 , runNonDetM
 , NonDetC(..)
+, BinaryTree
   -- * Re-exports
 , Carrier
 , run
@@ -115,7 +116,7 @@ instance MonadTrans NonDetC where
   lift m = NonDetC (\ _ leaf _ -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance (Carrier sig m, Effect sig) => Carrier (NonDet :+: sig) (NonDetC m) where
+instance (Carrier sig m, Effect BinaryTree sig) => Carrier (NonDet :+: sig) (NonDetC m) where
   eff (L (L Empty))      = empty
   eff (L (R (Choose k))) = k True <|> k False
   eff (R other)          = NonDetC $ \ fork leaf nil -> eff (handle (Leaf ()) (fmap join . traverse runNonDetA) other) >>= fold fork leaf nil
