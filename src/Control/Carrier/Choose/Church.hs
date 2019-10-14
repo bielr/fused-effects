@@ -88,7 +88,7 @@ instance MonadTrans ChooseC where
   lift m = ChooseC (\ _ leaf -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance (Carrier sig m, Effect BinaryTree sig) => Carrier (Choose :+: sig) (ChooseC m) where
+instance (Carrier sig m, Handles BinaryTree sig) => Carrier (Choose :+: sig) (ChooseC m) where
   eff (L (Choose k)) = ChooseC $ \ fork leaf -> fork (runChooseC (k True) fork leaf) (runChooseC (k False) fork leaf)
   eff (R other)      = ChooseC $ \ fork leaf -> eff (handle (Leaf ()) (fmap join . traverse (runChoose (liftA2 Fork) (pure . Leaf))) other) >>= fold fork leaf
   {-# INLINE eff #-}

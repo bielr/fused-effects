@@ -19,8 +19,8 @@ data (f :+: g) (m :: * -> *) k
 
 infixr 4 :+:
 
-instance (HFunctor f, HFunctor g) => HFunctor (f :+: g)
-instance (Effect f g, Effect f h) => Effect f (g :+: h)
+instance (HFunctor l, HFunctor r) => HFunctor (l :+: r)
+instance (Handles f l, Handles f r) => Handles f (l :+: r)
 
 
 -- | The class of types present in a signature.

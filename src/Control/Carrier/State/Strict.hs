@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExplicitForAll, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass, DeriveFunctor, ExplicitForAll, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
 
 {- | A carrier for the 'State' effect. It evaluates its inner state strictly, which is the correct choice for the majority of use cases.
 
@@ -101,7 +101,7 @@ instance MonadTrans (StateC s) where
   lift m = StateC (\ s -> (,) s <$> m)
   {-# INLINE lift #-}
 
-instance (Carrier sig m, Effect ((,) s) sig) => Carrier (State s :+: sig) (StateC s m) where
+instance (Carrier sig m, Handles ((,) s) sig) => Carrier (State s :+: sig) (StateC s m) where
   eff (L (Get   k)) = StateC (\ s -> runState s (k s))
   eff (L (Put s k)) = StateC (\ _ -> runState s k)
   eff (R other)     = StateC (\ s -> eff (handle (s, ()) (uncurry runState) other))

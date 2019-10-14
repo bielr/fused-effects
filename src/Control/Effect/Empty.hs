@@ -27,7 +27,7 @@ data Empty (m :: * -> *) k = Empty
   deriving (Functor, Generic1)
 
 instance HFunctor Empty
-instance Effect f Empty
+instance Handles f Empty
 
 -- | Abort the computation.
 --

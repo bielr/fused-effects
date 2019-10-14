@@ -21,7 +21,7 @@ newtype Lift sig m k = Lift { unLift :: sig (m k) }
   deriving (Functor, Generic1)
 
 instance Functor m => HFunctor (Lift m)
-instance (Functor f, Functor m) => Effect f (Lift m)
+instance (Functor f, Functor m) => Handles f (Lift m)
 
 -- | Given a @Lift n@ constraint in a signature carried by @m@, 'sendM'
 -- promotes arbitrary actions of type @n a@ to @m a@. It is spiritually

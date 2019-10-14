@@ -22,4 +22,4 @@ data Pure (m :: * -> *) k
   deriving (Functor, Generic1)
 
 instance HFunctor Pure
-instance Effect f Pure
+instance Handles f Pure

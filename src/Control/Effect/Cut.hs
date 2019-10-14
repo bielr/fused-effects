@@ -36,7 +36,7 @@ instance HFunctor Cut where
   hmap f (Call m k) = Call (f m) (f . k)
   {-# INLINE hmap #-}
 
-instance Functor f => Effect f Cut where
+instance Functor f => Handles f Cut where
   handle _     _       Cutfail    = Cutfail
   handle state handler (Call m k) = Call (handler (m <$ state)) (handler . fmap k)
   {-# INLINE handle #-}

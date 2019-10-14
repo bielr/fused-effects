@@ -31,7 +31,7 @@ instance HFunctor Resource where
   hmap f (Resource acquire release use k) = Resource (f acquire) (f . release) (f . use) (f . k)
   hmap f (OnError acquire release use k)  = OnError  (f acquire) (f . release) (f . use) (f . k)
 
-instance Functor f => Effect f Resource where
+instance Functor f => Handles f Resource where
   handle state handler (Resource acquire release use k) = Resource (handler (acquire <$ state)) (handler . fmap release) (handler . fmap use) (handler . fmap k)
   handle state handler (OnError acquire release use k)  = OnError  (handler (acquire <$ state)) (handler . fmap release) (handler . fmap use) (handler . fmap k)
 

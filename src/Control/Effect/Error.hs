@@ -32,7 +32,7 @@ instance HFunctor (Error exc) where
   hmap _ (Throw exc)   = Throw exc
   hmap f (Catch m h k) = Catch (f m) (f . h) (f . k)
 
-instance Functor f => Effect f (Error exc) where
+instance Functor f => Handles f (Error exc) where
   handle _     _       (Throw exc)   = Throw exc
   handle state handler (Catch m h k) = Catch (handler (m <$ state)) (handler . (<$ state) . h) (handler . fmap k)
 

@@ -29,7 +29,7 @@ instance HFunctor Cull where
   hmap f (Cull m k) = Cull (f m) (f . k)
   {-# INLINE hmap #-}
 
-instance Functor f => Effect f Cull where
+instance Functor f => Handles f Cull where
   handle state handler (Cull m k) = Cull (handler (m <$ state)) (handler . fmap k)
   {-# INLINE handle #-}
 

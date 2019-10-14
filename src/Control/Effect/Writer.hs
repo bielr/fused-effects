@@ -35,7 +35,7 @@ instance HFunctor (Writer w) where
   hmap f (Censor g m k) = Censor g (f m) (f     . k)
   {-# INLINE hmap #-}
 
-instance Functor f => Effect f (Writer w) where
+instance Functor f => Handles f (Writer w) where
   handle state handler (Tell w     k) = Tell w                          (handler (k <$ state))
   handle state handler (Listen   m k) = Listen   (handler (m <$ state)) (fmap handler . fmap . k)
   handle state handler (Censor f m k) = Censor f (handler (m <$ state)) (handler . fmap k)

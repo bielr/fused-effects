@@ -26,4 +26,4 @@ newtype Fail (m :: * -> *) k = Fail String
   deriving (Functor, Generic1)
 
 instance HFunctor Fail
-instance Effect f Fail
+instance Handles f Fail

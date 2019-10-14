@@ -43,7 +43,7 @@ instance Fail.MonadFail m => Fail.MonadFail (EmptyC m) where
   fail = lift . Fail.fail
   {-# INLINE fail #-}
 
-instance (Carrier sig m, Effect Maybe sig) => Carrier (Empty :+: sig) (EmptyC m) where
+instance (Carrier sig m, Handles Maybe sig) => Carrier (Empty :+: sig) (EmptyC m) where
   eff (L Empty) = EmptyC (MaybeT (pure Nothing))
   eff (R other) = EmptyC (MaybeT (eff (handle (Just ()) (maybe (pure Nothing) runEmpty) other)))
   {-# INLINE eff #-}

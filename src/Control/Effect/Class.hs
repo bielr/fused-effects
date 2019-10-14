@@ -1,13 +1,13 @@
-{-# LANGUAGE DefaultSignatures, EmptyCase, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, TypeOperators #-}
+{-# LANGUAGE DefaultSignatures, EmptyCase, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
 
--- | Provides the 'HFunctor' and 'Effect' classes that effect types implement.
+-- | Provides the 'HFunctor' and 'Handles' classes that effect types implement.
 module Control.Effect.Class
 ( HFunctor(..)
 , handleCoercible
-, Effect(..)
--- * Generic deriving of 'HFunctor' & 'Effect' instances.
+, Handles(..)
+-- * Generic deriving of 'HFunctor' & 'Handles' instances.
 , GHFunctor(..)
-, GEffect(..)
+, GHandles(..)
 ) where
 
 import Data.Coerce
@@ -46,14 +46,14 @@ handleCoercible = hmap coerce
 -- All first-order effects (those without existential occurrences of @m@) admit a default definition of 'handle' provided a 'Generic1' instance is available for the effect.
 --
 -- @since 1.0.0.0
-class HFunctor sig => Effect f sig where
+class HFunctor sig => Handles f sig where
   -- | Handle any effects in a signature by threading the carrier’s state all the way through to the continuation.
   handle :: Monad m
          => f ()
          -> (forall x . f (m x) -> n (f x))
          -> sig m a
          -> sig n (f a)
-  default handle :: (Monad m, Generic1 (sig m), Generic1 (sig n), GEffect f m n (Rep1 (sig m)) (Rep1 (sig n)))
+  default handle :: (Monad m, Generic1 (sig m), Generic1 (sig n), GHandles f m n (Rep1 (sig m)) (Rep1 (sig n)))
                  => f ()
                  -> (forall x . f (m x) -> n (f x))
                  -> sig m a
@@ -109,8 +109,8 @@ instance HFunctor f => GHFunctor m m' (Rec1 (f m)) (Rec1 (f m')) where
   {-# INLINE ghmap #-}
 
 
--- | Generic implementation of 'Effect'.
-class GEffect f m m' rep rep' where
+-- | Generic implementation of 'Handles'.
+class GHandles f m m' rep rep' where
   -- | Generic implementation of 'handle'.
   ghandle :: Monad m
           => f ()
@@ -118,43 +118,43 @@ class GEffect f m m' rep rep' where
           -> rep a
           -> rep' (f a)
 
-instance GEffect f m m' rep rep' => GEffect f m m' (M1 i c rep) (M1 i c rep') where
+instance GHandles f m m' rep rep' => GHandles f m m' (M1 i c rep) (M1 i c rep') where
   ghandle state handler = M1 . ghandle state handler . unM1
   {-# INLINE ghandle #-}
 
-instance (GEffect f m m' l l', GEffect f m m' r r') => GEffect f m m' (l :+: r) (l' :+: r') where
+instance (GHandles f m m' l l', GHandles f m m' r r') => GHandles f m m' (l :+: r) (l' :+: r') where
   ghandle state handler (L1 l) = L1 (ghandle state handler l)
   ghandle state handler (R1 r) = R1 (ghandle state handler r)
   {-# INLINE ghandle #-}
 
-instance (GEffect f m m' l l', GEffect f m m' r r') => GEffect f m m' (l :*: r) (l' :*: r') where
+instance (GHandles f m m' l l', GHandles f m m' r r') => GHandles f m m' (l :*: r) (l' :*: r') where
   ghandle state handler (l :*: r) = ghandle state handler l :*: ghandle state handler r
   {-# INLINE ghandle #-}
 
-instance GEffect f m m' V1 V1 where
+instance GHandles f m m' V1 V1 where
   ghandle _ _ v = case v of {}
   {-# INLINE ghandle #-}
 
-instance GEffect f m m' U1 U1 where
+instance GHandles f m m' U1 U1 where
   ghandle _ _ = coerce
   {-# INLINE ghandle #-}
 
-instance GEffect f m m' (K1 R c) (K1 R c) where
+instance GHandles f m m' (K1 R c) (K1 R c) where
   ghandle _ _ = coerce
   {-# INLINE ghandle #-}
 
-instance Functor f => GEffect f m m' Par1 Par1 where
+instance Functor f => GHandles f m m' Par1 Par1 where
   ghandle state _ = Par1 . (<$ state) . unPar1
   {-# INLINE ghandle #-}
 
-instance (Functor g, GEffect f m m' h h') => GEffect f m m' (g :.: h) (g :.: h') where
+instance (Functor l, GHandles f m m' r r') => GHandles f m m' (l :.: r) (l :.: r') where
   ghandle state handler = Comp1 . fmap (ghandle state handler) . unComp1
   {-# INLINE ghandle #-}
 
-instance Functor f => GEffect f m m' (Rec1 m) (Rec1 m') where
+instance Functor f => GHandles f m m' (Rec1 m) (Rec1 m') where
   ghandle state handler = Rec1 . handler . (<$ state) . unRec1
   {-# INLINE ghandle #-}
 
-instance Effect f g => GEffect f m m' (Rec1 (g m)) (Rec1 (g m')) where
+instance Handles f sig => GHandles f m m' (Rec1 (sig m)) (Rec1 (sig m')) where
   ghandle state handler = Rec1 . handle state handler . unRec1
   {-# INLINE ghandle #-}

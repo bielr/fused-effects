@@ -34,11 +34,11 @@ runFail = runError . runFailC
 newtype FailC m a = FailC { runFailC :: ErrorC String m a }
   deriving (Alternative, Applicative, Functor, Monad, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Carrier sig m, Effect (Either String) sig) => Fail.MonadFail (FailC m) where
+instance (Carrier sig m, Handles (Either String) sig) => Fail.MonadFail (FailC m) where
   fail = send . Fail
   {-# INLINE fail #-}
 
-instance (Carrier sig m, Effect (Either String) sig) => Carrier (Fail :+: sig) (FailC m) where
+instance (Carrier sig m, Handles (Either String) sig) => Carrier (Fail :+: sig) (FailC m) where
   eff (L (Fail s)) = FailC (throwError s)
   eff (R other)    = FailC (eff (R (handleCoercible other)))
   {-# INLINE eff #-}

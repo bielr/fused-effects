@@ -46,7 +46,7 @@ execWriter = fmap fst . runWriter
 newtype WriterC w m a = WriterC { runWriterC :: StateC w m a }
   deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Monoid w, Carrier sig m, Effect ((,) w) sig) => Carrier (Writer w :+: sig) (WriterC w m) where
+instance (Monoid w, Carrier sig m, Handles ((,) w) sig) => Carrier (Writer w :+: sig) (WriterC w m) where
   eff (L (Tell w     k)) = WriterC $ do
     modify (`mappend` w)
     runWriterC k

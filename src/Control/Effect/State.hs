@@ -30,7 +30,7 @@ data State s m k
   = Get (s -> m k)
   | Put s (m k)
   deriving stock (Functor, Generic1)
-  deriving anyclass (HFunctor, Effect f)
+  deriving anyclass (HFunctor, Handles f)
 
 -- | Get the current state value.
 --

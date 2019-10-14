@@ -33,7 +33,7 @@ runTrace = fmap (first reverse) . runState [] . runTraceC
 newtype TraceC m a = TraceC { runTraceC :: StateC [String] m a }
   deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Carrier sig m, Effect ((,) [String]) sig) => Carrier (Trace :+: sig) (TraceC m) where
+instance (Carrier sig m, Handles ((,) [String]) sig) => Carrier (Trace :+: sig) (TraceC m) where
   eff (L (Trace m k)) = TraceC (modify (m :)) *> k
   eff (R other)       = TraceC (eff (R (handleCoercible other)))
 

@@ -28,7 +28,7 @@ deriving instance Functor m => Functor (Resumable err m)
 instance HFunctor (Resumable err) where
   hmap f (Resumable err k) = Resumable err (f . k)
 
-instance Functor f => Effect f (Resumable err) where
+instance Functor f => Handles f (Resumable err) where
   handle state handler (Resumable err k) = Resumable err (handler . (<$ state) . k)
 
 -- | Throw an error which can be resumed with a value of its result type. Note that the type parameters in the @err a@ paramater and @m a@ parameter must match up; this indicates the type with which the error must be resumed.

@@ -29,7 +29,7 @@ instance HFunctor Fresh where
   hmap f (Fresh   k) = Fresh       (f . k)
   hmap f (Reset m k) = Reset (f m) (f . k)
 
-instance Functor f => Effect f Fresh where
+instance Functor f => Handles f Fresh where
   handle state handler (Fresh   k) = Fresh (handler . (<$ state) . k)
   handle state handler (Reset m k) = Reset (handler (m <$ state)) (handler . fmap k)
 
