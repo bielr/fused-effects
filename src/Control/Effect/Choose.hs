@@ -2,7 +2,7 @@
 
 {- | An effect modelling nondeterminism without failure (one or more successful results).
 
-The 'Control.Effect.NonDet.NonDet' effect is the composition of 'Choose' and 'Control.Effect.Empty.Empty'.
+The 'Control.Effect.NonDet.NonDet' effect is the composition of 'Choose' and 'Empty'.
 
 Predefined carriers:
 
@@ -24,7 +24,7 @@ module Control.Effect.Choose
 , Has
 ) where
 
-import {-# SOURCE #-} Control.Carrier
+import Control.Carrier
 import Control.Effect.Empty
 import Data.Bool (bool)
 import Data.List.NonEmpty (NonEmpty (..))
