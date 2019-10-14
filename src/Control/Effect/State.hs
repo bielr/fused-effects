@@ -34,6 +34,7 @@ data State s m k
 instance HFunctor (State s)
 instance Functor f => Handles f (State s)
 
+
 -- | Get the current state value.
 --
 --   prop> snd (run (runState a get)) === a
