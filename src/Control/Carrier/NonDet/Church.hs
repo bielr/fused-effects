@@ -3,6 +3,8 @@
 {- | Provides 'NonDetC', a carrier for 'NonDet' effects providing choice and failure.
 
 Under the hood, it uses a Church-encoded structure and a binary tree to prevent the problems associated with a naïve list-based implementation.
+
+@since 1.0.0.0
 -}
 
 module Control.Carrier.NonDet.Church
@@ -17,7 +19,7 @@ module Control.Carrier.NonDet.Church
 ) where
 
 import Control.Applicative (liftA2)
-import Control.Carrier
+import Control.Carrier.Class
 import Control.Effect.NonDet
 import Control.Monad (join)
 import qualified Control.Monad.Fail as Fail
@@ -60,10 +62,7 @@ runNonDetM leaf = runNonDet (liftA2 mappend) (pure . leaf) (pure mempty)
 -- | A carrier for 'NonDet' effects based on Ralf Hinze’s design described in [Deriving Backtracking Monad Transformers](https://www.cs.ox.ac.uk/ralf.hinze/publications/#P12).
 --
 -- @since 1.0.0.0
-newtype NonDetC m a = NonDetC
-  { -- | A higher-order function receiving three continuations, respectively implementing '<|>', 'pure', and 'empty'.
-    runNonDetC :: forall b . (m b -> m b -> m b) -> (a -> m b) -> m b -> m b
-  }
+newtype NonDetC m a = NonDetC (forall b . (m b -> m b -> m b) -> (a -> m b) -> m b -> m b)
   deriving (Functor)
 
 instance Applicative (NonDetC m) where

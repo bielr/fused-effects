@@ -45,7 +45,6 @@ library
   hs-source-dirs: src
   exposed-modules:
     -- Carriers
-    Control.Carrier
     Control.Carrier.Choose.Church
     Control.Carrier.Class
     Control.Carrier.Cull.Church
@@ -59,8 +58,6 @@ library
     Control.Carrier.NonDet.Church
     Control.Carrier.Pure
     Control.Carrier.Reader
-    Control.Carrier.Resumable.Either
-    Control.Carrier.Resumable.Resume
     Control.Carrier.State.Lazy
     Control.Carrier.State.Strict
     Control.Carrier.Throw.Either
@@ -82,7 +79,6 @@ library
     Control.Effect.NonDet
     Control.Effect.Pure
     Control.Effect.Reader
-    Control.Effect.Resumable
     Control.Effect.State
     Control.Effect.Sum
     Control.Effect.Throw
@@ -125,9 +121,12 @@ test-suite test
     Cut
     Empty
     Error
+    Fail
     Fresh
     Fusion
     Gen
+    Monad
+    MonadFix
     NonDet
     NonDet.Church
     Reader
@@ -136,6 +135,7 @@ test-suite test
     Writer
   build-depends:
       base
+    , containers          >= 0.5 && < 0.7
     , fused-effects
     , hedgehog           ^>= 1
     , hedgehog-fn        ^>= 1

@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveFunctor, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for 'Reader' effects.
-
+--
+-- @since 1.0.0.0
 module Control.Carrier.Reader
 ( -- * Reader carrier
   runReader
@@ -11,7 +12,7 @@ module Control.Carrier.Reader
 ) where
 
 import Control.Applicative (Alternative(..), liftA2)
-import Control.Carrier
+import Control.Carrier.Class
 import Control.Effect.Reader
 import Control.Monad (MonadPlus(..))
 import qualified Control.Monad.Fail as Fail
@@ -34,11 +35,11 @@ import Control.Monad.Trans.Class
 --
 -- @since 1.0.0.0
 runReader :: r -> ReaderC r m a -> m a
-runReader r c = runReaderC c r
+runReader r (ReaderC runReaderC) = runReaderC r
 {-# INLINE runReader #-}
 
 -- | @since 1.0.0.0
-newtype ReaderC r m a = ReaderC { runReaderC :: r -> m a }
+newtype ReaderC r m a = ReaderC (r -> m a)
   deriving (Functor)
 
 instance Applicative m => Applicative (ReaderC r m) where
