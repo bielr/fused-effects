@@ -18,8 +18,8 @@ module Control.Carrier.NonDet.Church
 , module Control.Effect.NonDet
 ) where
 
+import Control.Algebra
 import Control.Applicative (liftA2)
-import Control.Carrier.Class
 import Control.Effect.NonDet
 import Control.Monad (join)
 import qualified Control.Monad.Fail as Fail
@@ -107,7 +107,7 @@ instance MonadTrans NonDetC where
   lift m = NonDetC (\ _ leaf _ -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance (Carrier sig m, Handles BinaryTree sig) => Carrier (NonDet :+: sig) (NonDetC m) where
+instance (Algebra sig m, Handles BinaryTree sig) => Algebra (NonDet :+: sig) (NonDetC m) where
   eff (L (L Empty))      = empty
   eff (L (R (Choose k))) = k True <|> k False
   eff (R other)          = NonDetC $ \ fork leaf nil -> eff (handle (Leaf ()) (fmap join . traverse runNonDetA) other) >>= fold fork leaf nil
