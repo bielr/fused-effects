@@ -35,15 +35,10 @@ data Cut m k
 
 deriving instance Functor m => Functor (Cut m)
 
-instance HFunctor Cut where
-  hmap _ Cutfail    = Cutfail
-  hmap f (Call m k) = Call (f m) (f . k)
-  {-# INLINE hmap #-}
-
-instance Functor f => Handles f Cut where
-  handle _     _       Cutfail    = Cutfail
-  handle state handler (Call m k) = Call (handler (m <$ state)) (handler . fmap k)
-  {-# INLINE handle #-}
+instance Functor ctx => Threads ctx Cut where
+  thread _   _       Cutfail    = Cutfail
+  thread ctx handler (Call m k) = Call (handler (m <$ ctx)) (handler . fmap k)
+  {-# INLINE thread #-}
 
 -- | Fail the current branch, and prevent backtracking within the nearest enclosing 'call' (if any).
 --
@@ -52,7 +47,6 @@ instance Functor f => Handles f Cut where
 -- @
 -- 'cutfail' '>>=' k = 'cutfail'
 -- @
---
 -- @
 -- 'cutfail' '<|>' m = 'cutfail'
 -- @

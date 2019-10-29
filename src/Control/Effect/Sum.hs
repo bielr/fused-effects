@@ -23,8 +23,7 @@ data (f :+: g) (m :: * -> *) k
 
 infixr 4 :+:
 
-instance (HFunctor l, HFunctor r) => HFunctor (l :+: r)
-instance (Handles f l, Handles f r) => Handles f (l :+: r)
+instance (Threads ctx f, Threads ctx g) => Threads ctx (f :+: g)
 
 
 -- | The class of types present in a signature.

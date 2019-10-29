@@ -29,13 +29,9 @@ data Cull m k
 
 deriving instance Functor m => Functor (Cull m)
 
-instance HFunctor Cull where
-  hmap f (Cull m k) = Cull (f m) (f . k)
-  {-# INLINE hmap #-}
-
-instance Functor f => Handles f Cull where
-  handle state handler (Cull m k) = Cull (handler (m <$ state)) (handler . fmap k)
-  {-# INLINE handle #-}
+instance Functor ctx => Threads ctx Cull where
+  thread ctx handler (Cull m k) = Cull (handler (m <$ ctx)) (handler . fmap k)
+  {-# INLINE thread #-}
 
 -- | Cull nondeterminism in the argument, returning at most one result.
 --

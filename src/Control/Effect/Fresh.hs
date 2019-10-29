@@ -25,8 +25,8 @@ data Fresh m k
   = Fresh (Int -> m k)
   deriving (Functor, Generic1)
 
-instance HFunctor Fresh
-instance Functor f => Handles f Fresh
+instance Functor ctx => Threads ctx Fresh
+
 
 -- | Produce a fresh (i.e. unique) 'Int'.
 --

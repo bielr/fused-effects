@@ -1,162 +1,96 @@
 {-# LANGUAGE DefaultSignatures, EmptyCase, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeOperators #-}
 
--- | Provides the 'HFunctor' and 'Handles' classes that effect types implement.
+-- | Provides the 'Effect' class that effect types implement.
 --
 -- @since 1.0.0.0
 module Control.Effect.Class
-( HFunctor(..)
-, handleCoercible
-, Handles(..)
--- * Generic deriving of 'HFunctor' & 'Handles' instances.
-, GHFunctor(..)
-, GHandles(..)
+( -- * 'Effect' class
+  Threads(..)
+  -- * Generic deriving of 'Effect' instances.
+, GThreads(..)
 ) where
 
 import Data.Coerce
 import GHC.Generics
 
--- | Higher-order functors of kind @(* -> *) -> (* -> *)@ map functors to functors.
---
---   All effects must be 'HFunctor's.
---
--- @since 1.0.0.0
-class HFunctor h where
-  -- | Higher-order functor map of a natural transformation over higher-order positions within the effect.
+  -- | Handle any effects in a signature by threading the algebra’s handler all the way through to the continuation, starting from some initial context.
   --
-  -- A definition for 'hmap' over first-order effects can be derived automatically provided a 'Generic1' instance is available.
-  hmap :: Functor m => (forall x . m x -> n x) -> (h m a -> h n a)
-  default hmap :: (Functor m, Generic1 (h m), Generic1 (h n), GHFunctor m n (Rep1 (h m)) (Rep1 (h n))) => (forall x . m x -> n x) -> (h m a -> h n a)
-  hmap f = to1 . ghmap f . from1
-  {-# INLINE hmap #-}
-
-
--- | Thread a 'Coercible' carrier through an 'HFunctor'.
---
---   This is applicable whenever @f@ is 'Coercible' to @g@, e.g. simple @newtype@s.
---
--- @since 1.0.0.0
-handleCoercible :: (HFunctor sig, Functor f, Coercible f g) => sig f a -> sig g a
-handleCoercible = hmap coerce
-{-# INLINE handleCoercible #-}
-
-
--- | The class of effect types, which must:
---
---   1. Be functorial in their last two arguments, and
---   2. Support threading effects in higher-order positions through using the carrier’s suspended state.
---
--- All first-order effects (those without existential occurrences of @m@) admit a default definition of 'handle' provided a 'Generic1' instance is available for the effect.
---
--- @since 1.0.0.0
-class HFunctor sig => Handles f sig where
+  -- The handler is expressed as a /distributive law/, and required to adhere to the following laws:
+  --
+  -- @
+  -- handler . 'fmap' 'pure' = 'pure'
+  -- @
+  -- @
+  -- handler . 'fmap' (k '=<<') = handler . 'fmap' k 'Control.Monad.<=<' handler
+  -- @
+  --
+  -- respectively expressing that the handler does not alter the context of pure computations, and that the handler distributes over monadic composition.
+class Functor ctx => Threads ctx sig where
   -- | Handle any effects in a signature by threading the carrier’s state all the way through to the continuation.
-  handle :: Monad m
-         => f ()
-         -> (forall x . f (m x) -> n (f x))
-         -> sig m a
-         -> sig n (f a)
-  default handle :: (Monad m, Generic1 (sig m), Generic1 (sig n), GHandles f m n (Rep1 (sig m)) (Rep1 (sig n)))
-                 => f ()
-                 -> (forall x . f (m x) -> n (f x))
-                 -> sig m a
-                 -> sig n (f a)
-  handle state handler = to1 . ghandle state handler . from1
-  {-# INLINE handle #-}
-
-
--- | Generic implementation of 'HFunctor'.
-class GHFunctor m m' rep rep' where
-  -- | Generic implementation of 'hmap'.
-  ghmap :: Functor m => (forall x . m x -> m' x) -> (rep a -> rep' a)
-
-instance GHFunctor m m' rep rep' => GHFunctor m m' (M1 i c rep) (M1 i c rep') where
-  ghmap f = M1 . ghmap f . unM1
-  {-# INLINE ghmap #-}
-
-instance (GHFunctor m m' l l', GHFunctor m m' r r') => GHFunctor m m' (l :+: r) (l' :+: r') where
-  ghmap f (L1 l) = L1 (ghmap f l)
-  ghmap f (R1 r) = R1 (ghmap f r)
-  {-# INLINE ghmap #-}
-
-instance (GHFunctor m m' l l', GHFunctor m m' r r') => GHFunctor m m' (l :*: r) (l' :*: r') where
-  ghmap f (l :*: r) = ghmap f l :*: ghmap f r
-  {-# INLINE ghmap #-}
-
-instance GHFunctor m m' V1 V1 where
-  ghmap _ v = case v of {}
-  {-# INLINE ghmap #-}
-
-instance GHFunctor m m' U1 U1 where
-  ghmap _ = id
-  {-# INLINE ghmap #-}
-
-instance GHFunctor m m' (K1 R c) (K1 R c) where
-  ghmap _ = coerce
-  {-# INLINE ghmap #-}
-
-instance GHFunctor m m' Par1 Par1 where
-  ghmap _ = coerce
-  {-# INLINE ghmap #-}
-
-instance (Functor f, GHFunctor m m' g g') => GHFunctor m m' (f :.: g) (f :.: g') where
-  ghmap f = Comp1 . fmap (ghmap f) . unComp1
-  {-# INLINE ghmap #-}
-
-instance GHFunctor m m' (Rec1 m) (Rec1 m') where
-  ghmap f = Rec1 . f . unRec1
-  {-# INLINE ghmap #-}
-
-instance HFunctor f => GHFunctor m m' (Rec1 (f m)) (Rec1 (f m')) where
-  ghmap f = Rec1 . hmap f . unRec1
-  {-# INLINE ghmap #-}
+  thread
+    :: Monad m
+    => ctx ()
+    -> (forall x . ctx (m x) -> n (ctx x))
+    -> sig m a
+    -> sig n (ctx a)
+  default thread
+    :: (Monad m, Generic1 (sig m), Generic1 (sig n), GThreads ctx m n (Rep1 (sig m)) (Rep1 (sig n)))
+    => ctx ()                              -- ^ The initial context.
+    -> (forall x . ctx (m x) -> n (ctx x)) -- ^ A handler for actions in a context, producing actions with a derived context.
+    -> sig m a                             -- ^ The effect to thread the handler through.
+    -> sig n (ctx a)
+  thread state handler = to1 . gthread state handler . from1
+  {-# INLINE thread #-}
 
 
 -- | Generic implementation of 'Handles'.
-class GHandles f m m' rep rep' where
+class GThreads ctx m m' rep rep' where
   -- | Generic implementation of 'handle'.
-  ghandle :: Monad m
-          => f ()
-          -> (forall x . f (m x) -> m' (f x))
-          -> rep a
-          -> rep' (f a)
+  gthread
+    :: Monad m
+    => ctx ()
+    -> (forall x . ctx (m x) -> m' (ctx x))
+    -> rep a
+    -> rep' (ctx a)
 
-instance GHandles f m m' rep rep' => GHandles f m m' (M1 i c rep) (M1 i c rep') where
-  ghandle state handler = M1 . ghandle state handler . unM1
-  {-# INLINE ghandle #-}
+instance GThreads ctx m m' rep rep' => GThreads ctx m m' (M1 i c rep) (M1 i c rep') where
+  gthread state handler = M1 . gthread state handler . unM1
+  {-# INLINE gthread #-}
 
-instance (GHandles f m m' l l', GHandles f m m' r r') => GHandles f m m' (l :+: r) (l' :+: r') where
-  ghandle state handler (L1 l) = L1 (ghandle state handler l)
-  ghandle state handler (R1 r) = R1 (ghandle state handler r)
-  {-# INLINE ghandle #-}
+instance (GThreads ctx m m' l l', GThreads ctx m m' r r') => GThreads ctx m m' (l :+: r) (l' :+: r') where
+  gthread state handler (L1 l) = L1 (gthread state handler l)
+  gthread state handler (R1 r) = R1 (gthread state handler r)
+  {-# INLINE gthread #-}
 
-instance (GHandles f m m' l l', GHandles f m m' r r') => GHandles f m m' (l :*: r) (l' :*: r') where
-  ghandle state handler (l :*: r) = ghandle state handler l :*: ghandle state handler r
-  {-# INLINE ghandle #-}
+instance (GThreads ctx m m' l l', GThreads ctx m m' r r') => GThreads ctx m m' (l :*: r) (l' :*: r') where
+  gthread state handler (l :*: r) = gthread state handler l :*: gthread state handler r
+  {-# INLINE gthread #-}
 
-instance GHandles f m m' V1 V1 where
-  ghandle _ _ v = case v of {}
-  {-# INLINE ghandle #-}
+instance GThreads ctx m m' V1 V1 where
+  gthread _ _ v = case v of {}
+  {-# INLINE gthread #-}
 
-instance GHandles f m m' U1 U1 where
-  ghandle _ _ = coerce
-  {-# INLINE ghandle #-}
+instance GThreads ctx m m' U1 U1 where
+  gthread _ _ = coerce
+  {-# INLINE gthread #-}
 
-instance GHandles f m m' (K1 R c) (K1 R c) where
-  ghandle _ _ = coerce
-  {-# INLINE ghandle #-}
+instance GThreads ctx m m' (K1 R c) (K1 R c) where
+  gthread _ _ = coerce
+  {-# INLINE gthread #-}
 
-instance Functor f => GHandles f m m' Par1 Par1 where
-  ghandle state _ = Par1 . (<$ state) . unPar1
-  {-# INLINE ghandle #-}
+instance Functor ctx => GThreads ctx m m' Par1 Par1 where
+  gthread state _ = Par1 . (<$ state) . unPar1
+  {-# INLINE gthread #-}
 
-instance (Functor l, GHandles f m m' r r') => GHandles f m m' (l :.: r) (l :.: r') where
-  ghandle state handler = Comp1 . fmap (ghandle state handler) . unComp1
-  {-# INLINE ghandle #-}
+instance (Functor l, GThreads ctx m m' r r') => GThreads ctx m m' (l :.: r) (l :.: r') where
+  gthread state handler = Comp1 . fmap (gthread state handler) . unComp1
+  {-# INLINE gthread #-}
 
-instance Functor f => GHandles f m m' (Rec1 m) (Rec1 m') where
-  ghandle state handler = Rec1 . handler . (<$ state) . unRec1
-  {-# INLINE ghandle #-}
+instance Functor ctx => GThreads ctx m m' (Rec1 m) (Rec1 m') where
+  gthread state handler = Rec1 . handler . (<$ state) . unRec1
+  {-# INLINE gthread #-}
 
-instance Handles f sig => GHandles f m m' (Rec1 (sig m)) (Rec1 (sig m')) where
-  ghandle state handler = Rec1 . handle state handler . unRec1
-  {-# INLINE ghandle #-}
+instance Threads ctx sig => GThreads ctx m m' (Rec1 (sig m)) (Rec1 (sig m')) where
+  gthread state handler = Rec1 . thread state handler . unRec1
+  {-# INLINE gthread #-}
+

@@ -18,7 +18,6 @@ import Control.Monad (MonadPlus(..))
 import qualified Control.Monad.Fail as Fail
 import Control.Monad.Fix
 import Control.Monad.IO.Class
-import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Class
 import System.IO
 
@@ -43,13 +42,7 @@ instance MonadTrans TraceC where
   lift = TraceC
   {-# INLINE lift #-}
 
-instance MonadUnliftIO m => MonadUnliftIO (TraceC m) where
-  askUnliftIO = TraceC $ withUnliftIO $ \u -> return (UnliftIO (unliftIO u . runTrace))
-  {-# INLINE askUnliftIO #-}
-  withRunInIO inner = TraceC $ withRunInIO $ \run -> inner (run . runTrace)
-  {-# INLINE withRunInIO #-}
-
 instance (MonadIO m, Algebra sig m) => Algebra (Trace :+: sig) (TraceC m) where
-  eff (L (Trace s k)) = liftIO (hPutStrLn stderr s) *> k
-  eff (R other)       = TraceC (eff (handleCoercible other))
-  {-# INLINE eff #-}
+  alg (L (Trace s k)) = liftIO (hPutStrLn stderr s) *> k
+  alg (R other)       = TraceC (handleCoercible other)
+  {-# INLINE alg #-}
