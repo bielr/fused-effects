@@ -108,7 +108,7 @@ runApplication =
 data Log (a :: Type) (m :: Type -> Type) (k :: Type)
   = Log a (m k)
   deriving stock (Functor, Generic1)
-  deriving anyclass (Threads ctx)
+  deriving anyclass (Weaves ctx)
 
 -- Log an 'a'.
 log :: Has (Log a) sig m
@@ -200,7 +200,7 @@ newtype CollectLogMessagesC s m a
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects...
      ( Algebra sig m
-     , Threads ((,) [s]) sig
+     , Weaves ((,) [s]) sig
      )
      -- ...the 'CollectLogMessagesC s m' monad can interpret 'Log s :+: sig'
      -- effects

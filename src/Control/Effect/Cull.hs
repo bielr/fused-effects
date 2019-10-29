@@ -29,9 +29,9 @@ data Cull m k
 
 deriving instance Functor m => Functor (Cull m)
 
-instance Functor ctx => Threads ctx Cull where
-  thread ctx handler (Cull m k) = Cull (handler (m <$ ctx)) (handler . fmap k)
-  {-# INLINE thread #-}
+instance Functor ctx => Weaves ctx Cull where
+  weave ctx handler (Cull m k) = Cull (handler (m <$ ctx)) (handler . fmap k)
+  {-# INLINE weave #-}
 
 -- | Cull nondeterminism in the argument, returning at most one result.
 --

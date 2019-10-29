@@ -108,7 +108,7 @@ example = testGroup "parser"
 
 data Symbol m k = Satisfy (Char -> Bool) (Char -> m k)
   deriving stock (Functor, Generic1)
-  deriving anyclass (Threads ctx)
+  deriving anyclass (Weaves ctx)
 
 satisfy :: Has Symbol sig m => (Char -> Bool) -> m Char
 satisfy p = send (Satisfy p pure)
@@ -131,7 +131,7 @@ parse input = (>>= exhaustive) . runState input . runParseC
 newtype ParseC m a = ParseC { runParseC :: StateC String m a }
   deriving newtype (Alternative, Applicative, Functor, Monad)
 
-instance (Alternative m, Algebra sig m, Threads ((,) String) sig) => Algebra (Symbol :+: sig) (ParseC m) where
+instance (Alternative m, Algebra sig m, Weaves ((,) String) sig) => Algebra (Symbol :+: sig) (ParseC m) where
   alg (L (Satisfy p k)) = do
     input <- ParseC get
     case input of

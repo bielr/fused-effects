@@ -31,7 +31,7 @@ data Trace m k = Trace
   }
   deriving (Functor, Generic1)
 
-instance Functor ctx => Threads ctx Trace
+instance Functor ctx => Weaves ctx Trace
 
 -- | Append a message to the trace log.
 --

@@ -13,5 +13,5 @@ data Catch e m k
 
 deriving instance Functor m => Functor (Catch e m)
 
-instance Functor ctx => Threads ctx (Catch e) where
-  thread ctx handler (Catch m h k) = Catch (handler (m <$ ctx)) (handler . (<$ ctx) . h) (handler . fmap k)
+instance Functor ctx => Weaves ctx (Catch e) where
+  weave ctx handler (Catch m h k) = Catch (handler (m <$ ctx)) (handler . (<$ ctx) . h) (handler . fmap k)

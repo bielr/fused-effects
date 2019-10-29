@@ -82,9 +82,9 @@ instance MonadTrans ChooseC where
   lift m = ChooseC (\ _ leaf -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance (Algebra sig m, Threads (ChooseC Identity) sig) => Algebra (Choose :+: sig) (ChooseC m) where
+instance (Algebra sig m, Weaves (ChooseC Identity) sig) => Algebra (Choose :+: sig) (ChooseC m) where
   alg (L (Choose k)) = ChooseC $ \ fork leaf -> fork (runChoose fork leaf (k True)) (runChoose fork leaf (k False))
-  alg (R other)      = ChooseC $ \ fork leaf -> alg (thread (pure ()) dst other) >>= runIdentity . runChoose (coerce fork) (coerce leaf) where
+  alg (R other)      = ChooseC $ \ fork leaf -> alg (weave (pure ()) dst other) >>= runIdentity . runChoose (coerce fork) (coerce leaf) where
     dst :: Applicative m => ChooseC Identity (ChooseC m a) -> m (ChooseC Identity a)
     dst = runIdentity . runChoose (liftA2 (liftA2 (<|>))) (pure . runChoose (liftA2 (<|>)) (pure . pure))
   {-# INLINE alg #-}

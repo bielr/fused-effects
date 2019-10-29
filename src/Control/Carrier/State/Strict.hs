@@ -110,8 +110,8 @@ instance MonadTrans (StateC s) where
   lift m = StateC (\ s -> (,) s <$> m)
   {-# INLINE lift #-}
 
-instance (Algebra sig m, Threads ((,) s) sig) => Algebra (State s :+: sig) (StateC s m) where
+instance (Algebra sig m, Weaves ((,) s) sig) => Algebra (State s :+: sig) (StateC s m) where
   alg (L (Get   k)) = StateC (\ s -> runState s (k s))
   alg (L (Put s k)) = StateC (\ _ -> runState s k)
-  alg (R other)     = StateC (\ s -> alg (thread (s, ()) (uncurry runState) other))
+  alg (R other)     = StateC (\ s -> alg (weave (s, ()) (uncurry runState) other))
   {-# INLINE alg #-}

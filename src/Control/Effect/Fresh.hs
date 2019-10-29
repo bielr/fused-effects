@@ -25,7 +25,7 @@ data Fresh m k
   = Fresh (Int -> m k)
   deriving (Functor, Generic1)
 
-instance Functor ctx => Threads ctx Fresh
+instance Functor ctx => Weaves ctx Fresh
 
 
 -- | Produce a fresh (i.e. unique) 'Int'.

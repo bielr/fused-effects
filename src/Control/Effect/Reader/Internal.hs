@@ -12,6 +12,6 @@ data Reader r m k
 
 deriving instance Functor m => Functor (Reader r m)
 
-instance Functor ctx => Threads ctx (Reader r) where
-  thread ctx handler (Ask k)       = Ask                          (handler . (<$ ctx) . k)
-  thread ctx handler (Local f m k) = Local f (handler (m <$ ctx)) (handler . fmap k)
+instance Functor ctx => Weaves ctx (Reader r) where
+  weave ctx handler (Ask k)       = Ask                          (handler . (<$ ctx) . k)
+  weave ctx handler (Local f m k) = Local f (handler (m <$ ctx)) (handler . fmap k)

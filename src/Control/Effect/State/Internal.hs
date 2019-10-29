@@ -12,4 +12,4 @@ data State s m k
   | Put s (m k)
   deriving (Functor, Generic1)
 
-instance Functor ctx => Threads ctx (State s)
+instance Functor ctx => Weaves ctx (State s)

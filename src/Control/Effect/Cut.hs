@@ -35,10 +35,10 @@ data Cut m k
 
 deriving instance Functor m => Functor (Cut m)
 
-instance Functor ctx => Threads ctx Cut where
-  thread _   _       Cutfail    = Cutfail
-  thread ctx handler (Call m k) = Call (handler (m <$ ctx)) (handler . fmap k)
-  {-# INLINE thread #-}
+instance Functor ctx => Weaves ctx Cut where
+  weave _   _       Cutfail    = Cutfail
+  weave ctx handler (Call m k) = Call (handler (m <$ ctx)) (handler . fmap k)
+  {-# INLINE weave #-}
 
 -- | Fail the current branch, and prevent backtracking within the nearest enclosing 'call' (if any).
 --

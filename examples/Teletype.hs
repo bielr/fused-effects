@@ -41,7 +41,7 @@ data Teletype m k
   = Read (String -> m k)
   | Write String (m k)
   deriving stock (Functor, Generic1)
-  deriving anyclass (Threads ctx)
+  deriving anyclass (Weaves ctx)
 
 read :: Has Teletype sig m => m String
 read = send (Read pure)
@@ -68,7 +68,7 @@ runTeletypeRet i = runWriter . runState i . runTeletypeRetC
 newtype TeletypeRetC m a = TeletypeRetC { runTeletypeRetC :: StateC [String] (WriterC [String] m) a }
   deriving newtype (Applicative, Functor, Monad)
 
-instance (Algebra sig m, Threads ((,) [String]) sig) => Algebra (Teletype :+: sig) (TeletypeRetC m) where
+instance (Algebra sig m, Weaves ((,) [String]) sig) => Algebra (Teletype :+: sig) (TeletypeRetC m) where
   alg (L (Read    k)) = do
     i <- TeletypeRetC get
     case i of

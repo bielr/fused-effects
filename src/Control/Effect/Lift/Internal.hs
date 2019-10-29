@@ -15,7 +15,7 @@ data Lift sig m k
 instance Functor m => Functor (Lift sig m) where
   fmap f (LiftWith with k) = LiftWith with (fmap f . k)
 
-instance (Functor ctx, Functor sig) => Threads ctx (Lift sig) where
-  thread ctx dst (LiftWith with k) = LiftWith
+instance (Functor ctx, Functor sig) => Weaves ctx (Lift sig) where
+  weave ctx dst (LiftWith with k) = LiftWith
     (\ ctx' dst' -> getCompose <$> with (Compose (ctx <$ ctx')) (fmap Compose . dst' . fmap dst . getCompose))
     (dst . fmap k)

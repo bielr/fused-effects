@@ -23,7 +23,7 @@ data (f :+: g) (m :: * -> *) k
 
 infixr 4 :+:
 
-instance (Threads ctx f, Threads ctx g) => Threads ctx (f :+: g)
+instance (Weaves ctx f, Weaves ctx g) => Weaves ctx (f :+: g)
 
 
 -- | The class of types present in a signature.

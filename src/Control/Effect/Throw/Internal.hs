@@ -11,4 +11,4 @@ data Throw e (m :: * -> *) k
   = Throw e
   deriving (Functor, Generic1)
 
-instance Functor ctx => Threads ctx (Throw e)
+instance Functor ctx => Weaves ctx (Throw e)

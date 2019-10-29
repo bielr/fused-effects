@@ -11,4 +11,4 @@ newtype Choose m k
   = Choose (Bool -> m k)
   deriving (Functor, Generic1)
 
-instance Functor ctx => Threads ctx Choose
+instance Functor ctx => Weaves ctx Choose
