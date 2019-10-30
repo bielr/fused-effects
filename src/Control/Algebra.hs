@@ -1,4 +1,4 @@
-{-# LANGUAGE ConstraintKinds, DataKinds, DefaultSignatures, DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, KindSignatures, RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE BlockArguments, ConstraintKinds, DataKinds, DefaultSignatures, DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, KindSignatures, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | The 'Algebra' class is the mechanism with which effects are interpreted.
 
@@ -16,9 +16,12 @@ module Control.Algebra
   -- * Re-exports
 , (:+:) (..)
 , module Control.Effect.Class
-, CarrierTrans(..)
+, Carrier(..)
+, AlgebraTrans(..)
+, Algebra'(..)
 ) where
 
+import Control.Carrier.Trans
 import Control.Effect.Catch.Internal
 import Control.Effect.Choose.Internal
 import Control.Effect.Class
@@ -32,8 +35,10 @@ import Control.Effect.Sum ((:+:)(..), Member(..), Members)
 import Control.Effect.Throw.Internal
 import Control.Effect.Writer.Internal
 import Control.Monad ((<=<))
+import Data.Functor (($>))
+import Data.Functor.Compose
 import Data.Functor.Identity
-import qualified Control.Monad.Trans.Class as Trans
+import Control.Monad.Trans.Class (MonadTrans(..))
 import qualified Control.Monad.Trans.Except as Except
 import qualified Control.Monad.Trans.Identity as Identity
 import qualified Control.Monad.Trans.Reader as Reader
@@ -51,48 +56,69 @@ import Data.Tuple (swap)
 
 
 
-class Weaves Identity eff => Interprets eff t (m :: * -> *) | t -> eff where
-  interpret :: eff (t m) a -> t m a
+class (HFunctor (Eff t), Monad m, Monad (t m), MonadTrans t) => Carrier m t where
+  type Eff t :: (* -> *) -> * -> *
+  eff :: Eff t (t m) a -> t m a
+
+class (HFunctor (Sig m), Monad m) => Algebra' m where
+  type Sig m :: (* -> *) -> * -> *
+  alg' :: Sig m m a -> m a
 
 
-class (Monad n, Monad m) => CarrierTransStack n sig m | m -> sig where
-  liftedAlgs :: (forall x. m x -> m x) -> sig n a -> n a
+class Functor (Context t) => AlgebraTrans t where
+  type Context t :: * -> *
 
-
-
-class (Coercible n rep, Coercible rep n) => GNewtype1 (n :: * -> *) rep | rep -> n
-instance GNewtype1 n f => GNewtype1 n (M1 i t f)
-instance GNewtype1 n (Rec1 n)
-
-
-class (Monad (t m), Trans.MonadTrans t, Algebra sig m) => CarrierTrans sig m t | m -> sig where
-  liftedAlg :: sig (t m) a -> t m a
-
-  default liftedAlg
-    :: forall n a.
-    ( Generic1 (t m)
-    , GNewtype1 n (Rep1 (t m))
-    , CarrierTransStack n sig m
-    , Functor (sig n)
-    )
-    => sig (t m) a
+  liftWithC
+    :: (Monad m)
+    => (Context t ()
+        -> (forall x. Context t (t m x) -> m (Context t x))
+        -> m (Context t a))
     -> t m a
-  liftedAlg = to1 . coerce . liftedAlgs id @n @sig @m . hmap (coerce . from1)
+
+
+liftedAlg
+  :: (Algebra' m, AlgebraTrans t, Monad (t m), Weaves (Context t) (Sig m))
+  => Sig m (t m) a
+  -> t m a
+liftedAlg sig = liftWithC (\ctx hdl -> alg' (weave ctx hdl sig))
+
+
+-- class Algebra' m => HelperTransC ts m where
+--   liftedAlgTransC :: Sig m (TransC ts m) a -> TransC ts m a
+--
+-- instance (Algebra' m) => HelperTransC '[] m where
+--   liftedAlgTransC = TransC . alg' . hmap runTransC
+--
+-- instance (Algebra' m, HFunctor (Sig m), HFunctor t, Monad (ApplyTrans ts m), HelperTransC ts m) => HelperTransC (t ': ts) m where
+--   liftedAlgTransC = pushTransC . liftedAlgTransC . hmap peelTransC
+
+instance
+  ( AlgebraTrans t
+  , AlgebraTrans t'
+  , forall m. Monad m => Monad (t' m)
+  ) => AlgebraTrans (ComposeC t t') where
+  type Context (ComposeC t t') = Compose (Context t') (Context t)
+  liftWithC f = ComposeC $
+    liftWithC \ctx hdl ->
+      liftWithC \ctx' hdl' ->
+        fmap getCompose $
+          f (Compose (ctx' $> ctx))
+            (fmap Compose . hdl' . fmap hdl . getCompose . fmap runComposeC)
+
+
+-- instance {-# overlappable #-} (Carrier m t, AlgebraTrans m t, Monad (t m)) => Algebra' (t m) where
+--   type Sig (t m) = Eff t :+: Sig m
+--   alg' (L e) = eff e
+--   alg' (R o) = liftedAlg o
+
 
 
 -- | The class of carriers (results) for algebras (effect handlers) over signatures (effects), whose actions are given by the 'alg' method.
 --
 -- @since 1.0.0.0
-class (Monad m, Weaves Identity sig) => Algebra sig m | m -> sig where
+class (Monad m, HFunctor sig) => Algebra sig m | m -> sig where
   -- | Construct a value in the carrier for an effect signature (typically a sum of a handled effect and any remaining effects).
   alg :: sig m a -> m a
-
-  default alg
-    :: (m ~ t n, sig ~ (eff :+: sig'), Interprets eff t n, CarrierTrans sig' n t)
-    => sig m a
-    -> m a
-  alg (L eff) = interpret eff
-  alg (R sig) = liftedAlg sig
 
 
 -- | Run an action exhausted of effects to produce its final result value.
@@ -143,6 +169,10 @@ handleCoercible = handleIdentity coerce
 
 -- base
 
+instance Algebra'  IO where
+  type Sig IO = Lift IO
+  alg' (LiftWith with k) = with (Identity ()) coerce >>= k . runIdentity
+
 instance Algebra (Lift IO) IO where
   alg (LiftWith with k) = with (Identity ()) coerce >>= k . runIdentity
 
@@ -151,6 +181,10 @@ instance Algebra (Lift Identity) Identity where
 
 instance Algebra Choose NonEmpty where
   alg (Choose m) = m True S.<> m False
+
+instance Algebra' NonEmpty where
+  type Sig NonEmpty = Choose
+  alg' (Choose m) = m True S.<> m False
 
 instance Algebra Empty Maybe where
   alg Empty = Nothing
@@ -175,13 +209,15 @@ instance Monoid w => Algebra (Writer w) ((,) w) where
 
 -- transformers
 
-instance Monad m => Interprets (Error e) (Except.ExceptT e) m where
-  interpret (L (Throw e))     = Except.throwE e
-  interpret (R (Catch m h k)) = Except.catchE m h >>= k
+instance Monad m => Carrier m (Except.ExceptT e) where
+  type Eff (Except.ExceptT e) = Error e
+  eff (L (Throw e))     = Except.throwE e
+  eff (R (Catch m h k)) = Except.catchE m h >>= k
 
 
-instance (Algebra sig m, Weaves (Either e) sig) => CarrierTrans sig m (Except.ExceptT e) where
-  liftedAlg = Except.ExceptT . alg . weave (Right ()) (either (pure . Left) Except.runExceptT)
+instance AlgebraTrans (Except.ExceptT e) where
+  type Context (Except.ExceptT e) = Either e
+  liftWithC f = Except.ExceptT $ f (Right ()) (either (pure . Left) Except.runExceptT)
 
 
 instance (Algebra sig m, Weaves (Either e) sig) => Algebra (Error e :+: sig) (Except.ExceptT e m) where

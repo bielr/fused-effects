@@ -1,4 +1,4 @@
-{-# LANGUAGE DefaultSignatures, EmptyCase, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds, DefaultSignatures, EmptyCase, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, TypeOperators, UndecidableInstances #-}
 
 -- | Provides the 'Effect' class that effect types implement.
 --
@@ -6,6 +6,7 @@
 module Control.Effect.Class
 ( -- * 'Effect' class
   Weaves(..)
+, HFunctor
 , hmap
   -- * Generic deriving of 'Effect' instances.
 , GWeaves(..)
@@ -15,7 +16,7 @@ import Data.Coerce
 import Data.Functor.Identity
 import GHC.Generics
 
-class Functor ctx => Weaves ctx sig where
+class (Functor ctx, forall m. Monad m => Functor (sig m)) => Weaves ctx sig where
   -- | Handle any effects in a signature by weaveing the algebra’s handler all the way through to the continuation, starting from some initial context.
   --
   -- The handler is expressed as a /distributive law/, and required to adhere to the following laws:
@@ -44,7 +45,10 @@ class Functor ctx => Weaves ctx sig where
   {-# INLINE weave #-}
 
 
-hmap :: (Monad m, Monad n, Functor (sig n), Weaves Identity sig) => (forall x. m x -> n x) -> sig m a -> sig n a
+type HFunctor sig = Weaves Identity sig
+
+
+hmap :: (Monad m, Monad n, HFunctor sig) => (forall x. m x -> n x) -> sig m a -> sig n a
 hmap f = fmap runIdentity . weave (Identity ()) (fmap Identity . f . runIdentity)
 
 

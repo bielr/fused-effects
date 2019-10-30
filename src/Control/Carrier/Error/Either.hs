@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# language TypeFamilies #-}
 
 -- | A carrier for an 'Error' effect.
 --
@@ -20,6 +21,7 @@ import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
+import Data.Coerce
 
 -- | Run an 'Error' effect, returning uncaught errors in 'Left' and successful computations’ values in 'Right'.
 --
@@ -57,3 +59,12 @@ instance (Algebra sig m, Weaves (Either e) sig) => Algebra (Error e :+: sig) (Er
   alg (L (R op)) = ErrorC (handleCoercible op)
   alg (R op)     = ErrorC (handleCoercible op)
   {-# INLINE alg #-}
+
+
+instance Monad m => Carrier m (ErrorC e) where
+  type Eff (ErrorC e) = Error e
+  eff = undefined
+
+instance (Algebra' m, AlgebraTrans m (ExceptT e)) => AlgebraTrans m (ErrorC e) where
+  type Context (ErrorC e) = Context (ExceptT e)
+  liftedAlg = ErrorC . liftedAlg . hmap coerce

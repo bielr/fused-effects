@@ -43,12 +43,6 @@ runReader r (ReaderC runReaderC) = runReaderC r
 newtype ReaderC r m a = ReaderC (r -> m a)
   deriving (Functor)
 
--- | @since 1.0.0.0
-newtype ReaderC' r m a = ReaderC' (MT.ReaderT r m a)
-  deriving newtype (Functor, Applicative, Alternative, Monad, Fail.MonadFail, MonadIO, MonadFix, MonadPlus, MonadTrans)
-  deriving stock (Generic1)
-  deriving (CarrierTrans sig n)
-
 instance Applicative m => Applicative (ReaderC r m) where
   pure = ReaderC . const . pure
   {-# INLINE pure #-}
