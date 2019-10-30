@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for 'Reader' effects.
 --
@@ -19,6 +19,8 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import qualified Control.Monad.Trans.Reader as MT
+import GHC.Generics (Generic1)
 
 -- | Run a 'Reader' effect with the passed environment value.
 --
@@ -40,6 +42,12 @@ runReader r (ReaderC runReaderC) = runReaderC r
 -- | @since 1.0.0.0
 newtype ReaderC r m a = ReaderC (r -> m a)
   deriving (Functor)
+
+-- | @since 1.0.0.0
+newtype ReaderC' r m a = ReaderC' (MT.ReaderT r m a)
+  deriving newtype (Functor, Applicative, Alternative, Monad, Fail.MonadFail, MonadIO, MonadFix, MonadPlus, MonadTrans)
+  deriving stock (Generic1)
+  deriving (CarrierTrans sig n)
 
 instance Applicative m => Applicative (ReaderC r m) where
   pure = ReaderC . const . pure

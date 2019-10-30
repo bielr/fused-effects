@@ -1,4 +1,4 @@
-{-# LANGUAGE ConstraintKinds, DefaultSignatures, DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, KindSignatures, RankNTypes, TypeFamilies, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds, DataKinds, DefaultSignatures, DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, KindSignatures, RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | The 'Algebra' class is the mechanism with which effects are interpreted.
 
@@ -16,6 +16,7 @@ module Control.Algebra
   -- * Re-exports
 , (:+:) (..)
 , module Control.Effect.Class
+, CarrierTrans(..)
 ) where
 
 import Control.Effect.Catch.Internal
@@ -32,6 +33,7 @@ import Control.Effect.Throw.Internal
 import Control.Effect.Writer.Internal
 import Control.Monad ((<=<))
 import Data.Functor.Identity
+import qualified Control.Monad.Trans.Class as Trans
 import qualified Control.Monad.Trans.Except as Except
 import qualified Control.Monad.Trans.Identity as Identity
 import qualified Control.Monad.Trans.Reader as Reader
@@ -41,6 +43,7 @@ import qualified Control.Monad.Trans.State.Lazy as State.Lazy
 import qualified Control.Monad.Trans.State.Strict as State.Strict
 import qualified Control.Monad.Trans.Writer.Lazy as Writer.Lazy
 import qualified Control.Monad.Trans.Writer.Strict as Writer.Strict
+import GHC.Generics hiding (type (:+:))
 import Data.Coerce
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Semigroup as S
@@ -48,30 +51,48 @@ import Data.Tuple (swap)
 
 
 
-class Interprets sig t (m :: * -> *) | t -> sig where
-  interpret :: sig (t m) a -> t m a
+class Weaves Identity eff => Interprets eff t (m :: * -> *) | t -> eff where
+  interpret :: eff (t m) a -> t m a
 
 
-class Interprets sig t m => AlgebraRelay sig t m | t -> sig where
-  type Context t :: * -> *
-  type Context t = Identity
+class (Monad n, Monad m) => CarrierTransStack n sig m | m -> sig where
+  liftedAlgs :: (forall x. m x -> m x) -> sig n a -> n a
 
-  algRelay :: Algebra sig' m => sig' (t m) a -> t m a
+
+
+class (Coercible n rep, Coercible rep n) => GNewtype1 (n :: * -> *) rep | rep -> n
+instance GNewtype1 n f => GNewtype1 n (M1 i t f)
+instance GNewtype1 n (Rec1 n)
+
+
+class (Monad (t m), Trans.MonadTrans t, Algebra sig m) => CarrierTrans sig m t | m -> sig where
+  liftedAlg :: sig (t m) a -> t m a
+
+  default liftedAlg
+    :: forall n a.
+    ( Generic1 (t m)
+    , GNewtype1 n (Rep1 (t m))
+    , CarrierTransStack n sig m
+    , Functor (sig n)
+    )
+    => sig (t m) a
+    -> t m a
+  liftedAlg = to1 . coerce . liftedAlgs id @n @sig @m . hmap (coerce . from1)
 
 
 -- | The class of carriers (results) for algebras (effect handlers) over signatures (effects), whose actions are given by the 'alg' method.
 --
 -- @since 1.0.0.0
-class (Monad m) => Algebra sig m | m -> sig where
+class (Monad m, Weaves Identity sig) => Algebra sig m | m -> sig where
   -- | Construct a value in the carrier for an effect signature (typically a sum of a handled effect and any remaining effects).
   alg :: sig m a -> m a
 
   default alg
-    :: (m ~ t n, sig ~ (eff :+: sig'), Algebra sig' n, AlgebraRelay eff t n)
-    => (eff :+: sig') (t n) a
-    -> t n a
+    :: (m ~ t n, sig ~ (eff :+: sig'), Interprets eff t n, CarrierTrans sig' n t)
+    => sig m a
+    -> m a
   alg (L eff) = interpret eff
-  alg (R sig) = algRelay sig
+  alg (R sig) = liftedAlg sig
 
 
 -- | Run an action exhausted of effects to produce its final result value.
@@ -153,6 +174,15 @@ instance Monoid w => Algebra (Writer w) ((,) w) where
 
 
 -- transformers
+
+instance Monad m => Interprets (Error e) (Except.ExceptT e) m where
+  interpret (L (Throw e))     = Except.throwE e
+  interpret (R (Catch m h k)) = Except.catchE m h >>= k
+
+
+instance (Algebra sig m, Weaves (Either e) sig) => CarrierTrans sig m (Except.ExceptT e) where
+  liftedAlg = Except.ExceptT . alg . weave (Right ()) (either (pure . Left) Except.runExceptT)
+
 
 instance (Algebra sig m, Weaves (Either e) sig) => Algebra (Error e :+: sig) (Except.ExceptT e m) where
   alg (L (L (Throw e)))     = Except.throwE e
