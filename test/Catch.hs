@@ -10,8 +10,8 @@ import Test.Tasty
 import Test.Tasty.Hedgehog
 
 genN
-  :: forall e m a sig
-  .  (Has (Catch e) sig m, Arg e, Show e, Vary e)
+  :: forall e m a
+  .  (Has' (Catch e) m, Arg e, Show e, Vary e)
   => GenTerm e
   -> GenM m
   -> GenTerm a
@@ -20,7 +20,7 @@ genN _ m a = [ addLabel "catchError" $ subtermM (m a) (\ m' -> infixL 9 "`catchE
 
 
 test
-  :: (Has (Error e) sig m, Arg e, Eq a, Eq e, Show a, Show e, Vary e, Functor f)
+  :: (Has' (Error e) m, Arg e, Eq a, Eq e, Show a, Show e, Vary e, Functor f)
   => GenTerm e
   -> GenM m
   -> GenTerm a

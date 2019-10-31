@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DataKinds, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, PatternSynonyms, StandaloneDeriving, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for 'Cull' and 'NonDet' effects used in tandem (@Cull :+: NonDet@).
 --
@@ -17,6 +17,7 @@ module Control.Carrier.Cull.Church
 
 import Control.Algebra
 import Control.Applicative (liftA2)
+import Control.Carrier.Trans
 import Control.Carrier.NonDet.Church
 import Control.Carrier.Reader
 import Control.Effect.Cull
@@ -26,7 +27,6 @@ import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 
-import Data.Functor.Identity
 
 -- | Run a 'Cull' effect with continuations respectively interpreting '<|>', 'pure', and 'empty'. Branches outside of any 'cull' block will not be pruned.
 --
@@ -47,12 +47,24 @@ runCullM :: (Applicative m, Monoid b) => (a -> b) -> CullC m a -> m b
 runCullM leaf = runCull (liftA2 mappend) (pure . leaf) (pure mempty)
 
 -- | @since 1.0.0.0
-newtype CullC m a = CullC (ReaderC Bool (NonDetC m) a)
+newtype CullC m a = MkCullC (TransC '[ReaderC Bool, NonDetC] m a)
   deriving (Applicative, Functor, Monad, Fail.MonadFail, MonadIO)
+
+instance AlgebraTrans CullC where
+  type Context CullC = Context (TransC '[ReaderC Bool, NonDetC])
+  liftWithC = liftCoercibleWithC MkCullC
+  {-# inline liftWithC #-}
+
+
+pattern CullC :: ReaderC Bool (NonDetC m) a -> CullC m a
+pattern CullC m = MkCullC (ComposeC m)
+{-# COMPLETE CullC #-}
+
 
 instance Alternative (CullC m) where
   empty = CullC empty
   {-# INLINE empty #-}
+
   CullC l <|> CullC r = CullC $ ReaderC $ \ cull ->
     if cull then
       NonDetC $ \ fork leaf nil ->
@@ -70,9 +82,9 @@ instance MonadTrans CullC where
   lift = CullC . lift . lift
   {-# INLINE lift #-}
 
-instance (Algebra sig m, Weaves (NonDetC Identity) sig) => Algebra (Cull :+: NonDet :+: sig) (CullC m) where
-  alg (L (Cull (CullC m) k)) = CullC (local (const True) m) >>= k
-  alg (R (L (L Empty)))      = empty
-  alg (R (L (R (Choose k)))) = k True <|> k False
-  alg (R (R other))          = CullC (handleCoercible other)
-  {-# INLINE alg #-}
+instance (Monad m, Algebra' (ReaderC Bool (NonDetC m))) => Carrier m CullC where
+  type Eff CullC = Cull :+: NonDet
+  eff (L (Cull (CullC m) k)) = CullC (local (const True) m) >>= k
+  eff (R (L Empty))          = empty
+  eff (R (R (Choose k)))     = k True <|> k False
+  {-# INLINE eff #-}

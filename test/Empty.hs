@@ -29,13 +29,13 @@ tests = testGroup "Empty"
   initial = identity <*> unit
 
 
-gen0 :: Has Empty sig m => GenTerm a -> [GenTerm (m a)]
+gen0 :: Has' Empty m => GenTerm a -> [GenTerm (m a)]
 gen0 _ = [ label "empty" empty ]
 
 
 test
-  :: forall a b m f sig
-  .  (Has Empty sig m, Arg a, Eq b, Show a, Show b, Vary a, Functor f)
+  :: forall a b m f
+  .  (Has' Empty m, Arg a, Eq b, Show a, Show b, Vary a, Functor f)
   => GenM m
   -> GenTerm a
   -> GenTerm b

@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes #-}
--- GHC 8.2.2 warns that the Has Cull sig m constraint on gen0 is redundant, but doesn’t typecheck without it. Newer GHCs typecheck just fine either way and also don’t warn, so … whatever?
+-- GHC 8.2.2 warns that the Has' Cull m constraint on gen0 is redundant, but doesn’t typecheck without it. Newer GHCs typecheck just fine either way and also don’t warn, so … whatever?
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 module Cull
 ( tests
@@ -33,15 +33,15 @@ tests = testGroup "Cull"
   initial = identity <*> unit
 
 
-gen0 :: (Has Cull sig m, Has NonDet sig m) => GenTerm a -> [GenTerm (m a)]
+gen0 :: (Has' Cull m, Has' NonDet m) => GenTerm a -> [GenTerm (m a)]
 gen0 = NonDet.gen0
 
-genN :: (Has Cull sig m, Has NonDet sig m) => GenM m -> GenTerm a -> [GenTerm (m a)]
+genN :: (Has' Cull m, Has' NonDet m) => GenM m -> GenTerm a -> [GenTerm (m a)]
 genN m a = subtermM (m a) (label "cull" cull <*>) : NonDet.genN m a
 
 
 test
-  :: (Has Cull sig m, Has NonDet sig m, Arg a, Eq a, Eq b, Show a, Show b, Vary a, Functor f)
+  :: (Has' Cull m, Has' NonDet m, Arg a, Eq a, Eq b, Show a, Show b, Vary a, Functor f)
   => GenM m
   -> GenTerm a
   -> GenTerm b

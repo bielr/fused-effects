@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for the 'Control.Effect.Trace' effect that aggregates and returns all traced values.
 --
@@ -38,8 +38,8 @@ runTrace (TraceC m) = first (($[]) . appEndo) <$> runWriter m
 
 -- | @since 1.0.0.0
 newtype TraceC m a = TraceC (WriterC (Endo [String]) m a)
-  deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
+  deriving (AlgebraTrans, Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Algebra sig m, Weaves ((,) (Endo [String])) sig) => Algebra (Trace :+: sig) (TraceC m) where
-  alg (L (Trace m k)) = TraceC (tell (Endo (m :))) *> k
-  alg (R other)       = TraceC (handleCoercible other)
+instance (Monad m, Algebra' (WriterC (Endo [String]) m)) => Carrier m TraceC where
+  type Eff TraceC = Trace
+  eff (Trace m k) = TraceC (tell (Endo (m :))) *> k

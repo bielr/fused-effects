@@ -19,8 +19,8 @@ module Control.Effect.Lift
 , sendM
 , liftWith
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -32,7 +32,7 @@ import Control.Effect.Lift.Internal (Lift(..))
 -- similar to @lift@ from the @MonadTrans@ typeclass.
 --
 -- @since 1.0.0.0
-sendM :: (Has (Lift n) sig m, Functor n) => n a -> m a
+sendM :: (Has' (Lift n) m, Functor n) => n a -> m a
 sendM m = send (LiftWith (\ ctx _ -> (<$ ctx) <$> m) pure)
 
 
@@ -48,7 +48,7 @@ sendM m = send (LiftWith (\ ctx _ -> (<$ ctx) <$> m) pure)
 --
 -- @since 1.0.0.0
 liftWith
-  :: Has (Lift n) sig m
+  :: Has' (Lift n) m
   => (forall ctx . Functor ctx => ctx () -> (forall a . ctx (m a) -> n (ctx a)) -> n (ctx a))
   -> m a
 liftWith with = send (LiftWith with pure)

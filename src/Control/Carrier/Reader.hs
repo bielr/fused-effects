@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for 'Reader' effects.
 --
@@ -19,8 +19,7 @@ import qualified Control.Monad.Fail as Fail
 import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import qualified Control.Monad.Trans.Reader as MT
-import GHC.Generics (Generic1)
+import Data.Functor.Identity
 
 -- | Run a 'Reader' effect with the passed environment value.
 --
@@ -82,7 +81,16 @@ instance MonadTrans (ReaderC r) where
   {-# INLINE lift #-}
 
 instance Algebra sig m => Algebra (Reader r :+: sig) (ReaderC r m) where
-  alg (L (Ask       k)) = ReaderC (\ r -> runReader r (k r))
-  alg (L (Local f m k)) = ReaderC (\ r -> runReader (f r) m) >>= k
-  alg (R other)         = ReaderC (\ r -> handleIdentity (runReader r) other)
+  alg (L r)     = eff r
+  alg (R other) = ReaderC (\ r -> handleIdentity (runReader r) other)
   {-# INLINE alg #-}
+
+
+instance Monad m => Carrier m (ReaderC r) where
+  type Eff (ReaderC r) = Reader r
+  eff (Ask       k) = ReaderC (\ r -> runReader r (k r))
+  eff (Local f m k) = ReaderC (\ r -> runReader (f r) m) >>= k
+
+instance AlgebraTrans (ReaderC r) where
+  type Context (ReaderC r) = Identity
+  liftWithC f = ReaderC $ \r -> liftIdentityWithC (runReader r) f

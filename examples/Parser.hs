@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, DerivingStrategies, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, DerivingStrategies, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, TypeFamilies, TypeOperators, UndecidableInstances #-}
 module Parser
 ( example
 ) where
@@ -110,16 +110,16 @@ data Symbol m k = Satisfy (Char -> Bool) (Char -> m k)
   deriving stock (Functor, Generic1)
   deriving anyclass (Weaves ctx)
 
-satisfy :: Has Symbol sig m => (Char -> Bool) -> m Char
+satisfy :: Has' Symbol m => (Char -> Bool) -> m Char
 satisfy p = send (Satisfy p pure)
 
-char :: Has Symbol sig m => Char -> m Char
+char :: Has' Symbol m => Char -> m Char
 char = satisfy . (==)
 
-digit :: Has Symbol sig m => m Char
+digit :: Has' Symbol m => m Char
 digit = satisfy isDigit
 
-parens :: Has Symbol sig m => m a -> m a
+parens :: Has' Symbol m => m a -> m a
 parens m = char '(' *> m <* char ')'
 
 
@@ -129,31 +129,31 @@ parse input = (>>= exhaustive) . runState input . runParseC
         exhaustive _       = empty
 
 newtype ParseC m a = ParseC { runParseC :: StateC String m a }
-  deriving newtype (Alternative, Applicative, Functor, Monad)
+  deriving newtype (AlgebraTrans, Alternative, Applicative, Functor, Monad)
 
-instance (Alternative m, Algebra sig m, Weaves ((,) String) sig) => Algebra (Symbol :+: sig) (ParseC m) where
-  alg (L (Satisfy p k)) = do
+instance (Alternative m, Monad m, Algebra' (StateC String m)) => Carrier m ParseC where
+  type Eff ParseC = Symbol
+
+  eff (Satisfy p k) = do
     input <- ParseC get
     case input of
       c:cs | p c -> ParseC (put cs) *> k c
       _          -> empty
-  alg (R other)         = ParseC (handleCoercible other)
-  {-# INLINE alg #-}
 
 
-expr :: (Alternative m, Has Cut sig m, Has Symbol sig m) => m Int
+expr :: (Alternative m, Has' Cut m, Has' Symbol m) => m Int
 expr = do
   i <- term
   call ((i +) <$ char '+' <* cut <*> expr
     <|> pure i)
 
-term :: (Alternative m, Has Cut sig m, Has Symbol sig m) => m Int
+term :: (Alternative m, Has' Cut m, Has' Symbol m) => m Int
 term = do
   i <- factor
   call ((i *) <$ char '*' <* cut <*> term
     <|> pure i)
 
-factor :: (Alternative m, Has Cut sig m, Has Symbol sig m) => m Int
+factor :: (Alternative m, Has' Cut m, Has' Symbol m) => m Int
 factor
   =   read <$> some digit
   <|> parens expr

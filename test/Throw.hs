@@ -27,13 +27,13 @@ tests = testGroup "Throw" $
   initial = identity <*> unit
 
 
-gen0 :: Has (Throw e) sig m => GenTerm e -> GenTerm a -> [GenTerm (m a)]
+gen0 :: Has' (Throw e) m => GenTerm e -> GenTerm a -> [GenTerm (m a)]
 gen0 e _ = [ label "throwError" throwError <*> e ]
 
 
 test
-  :: forall e m a b f sig
-  .  (Has (Throw e) sig m, Arg a, Eq b, Eq e, Show a, Show b, Show e, Vary a, Functor f)
+  :: forall e m a b f
+  .  (Has' (Throw e) m, Arg a, Eq b, Eq e, Show a, Show b, Show e, Vary a, Functor f)
   => GenTerm e
   -> GenM m
   -> GenTerm a

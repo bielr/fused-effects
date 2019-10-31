@@ -54,7 +54,7 @@ Readers already familiar with effect systems may wish to start with the [usage](
 Setup, hidden from the rendered markdown.
 
 ```haskell
-{-# LANGUAGE ConstraintKinds, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeApplications, UndecidableInstances #-}
+{-# LANGUAGE DataKinds, ConstraintKinds, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeApplications, UndecidableInstances #-}
 module Main (module Main) where
 
 import Control.Algebra
@@ -63,6 +63,7 @@ import Control.Carrier.Reader
 import Control.Carrier.State.Strict
 import Control.Effect.Writer
 import Control.Monad.IO.Class (liftIO)
+import Control.Carrier.Trans
 import qualified Control.Monad.State.Class as MTL
 
 main :: IO ()
@@ -103,27 +104,27 @@ Finally, since the fusion of carrier algebras occurs as a result of the selectio
 Like other effect systems, effects are performed in a `Monad` extended with operations relating to the effect. In `fused-effects`, this is done by means of a `Has` constraint to require the effect’s presence in a _signature_, and to relate the signature to the _carrier_ you’re computing in. For example, to use a `State` effect managing a `String`, one would write:
 
 ```haskell
-action1 :: Has (State String) sig m => m ()
+action1 :: Has' (State String) m => m ()
 action1 = get >>= \ s -> put ("hello, " ++ s)
 ```
 
 Multiple effects can be required simply by adding more `Has` constraints to the context. For example, to add a `Reader` effect managing an `Int`, we would write:
 
 ```haskell
-action2 :: (Has (State String) sig m, Has (Reader Int) sig m) => m ()
+action2 :: (Has' (State String) m, Has' (Reader Int) m) => m ()
 action2 = ask >>= \ i -> put (replicate i '!')
 ```
 
 Different effects make different operations available; see the documentation for individual effects for more information about their operations. Note that we generally don't program against an explicit list of effect components: we take the typeclass-oriented approach, adding new constraints to `sig` as new capabilities become necessary. If you want to name and share some predefined list of effects, it's best to use the `-XConstraintKinds` extension to GHC, capturing the elements of `sig` as a type synonym of kind `Constraint`:
 
 ```haskell
-type Shared sig m
-  = ( Has (State String) sig m
-    , Has (Reader Int)   sig m
-    , Has (Writer [String]) sig m
+type Shared m
+  = ( Has' (State String) m
+    , Has' (Reader Int)   m
+    , Has' (Writer [String]) m
     )
 
-action3 :: Shared sig m => m ()
+action3 :: Shared m => m ()
 action3 = ask >>= \ i -> put (replicate i '?') >> tell [ "put " ++ show i ++ " '?'s" ]
 ```
 
@@ -132,7 +133,7 @@ action3 = ask >>= \ i -> put (replicate i '?') >> tell [ "put " ++ show i ++ " '
 Effects are run with _effect handlers_, specified as functions (generally starting with `run…`) unpacking some specific monad with a `Carrier` instance. For example, we can run a `State` computation using `runState`:
 
 ```haskell
-example1 :: (Algebra sig m, Weaves ((,) Int) sig) => [a] -> m (Int, ())
+example1 :: Algebra' (StateC Int m) => [a] -> m (Int, ())
 example1 list = runState 0 $ do
   i <- get @Int
   put (i + length list)
@@ -143,7 +144,7 @@ example1 list = runState 0 $ do
 Since this function returns a value in some carrier `m`, effect handlers can be chained to run multiple effects. Here, we get the list to compute the length of from a `Reader` effect:
 
 ```haskell
-example2 :: (Algebra sig m, Weaves ((,) Int) sig) => m (Int, ())
+example2 :: (Algebra' (StateC Int (ReaderC String m))) => m (Int, ())
 example2 = runReader "hello" . runState 0 $ do
   list <- ask
   put (length (list :: String))
@@ -270,20 +271,18 @@ Unlike `mtl`, effects are automatically available regardless of where they occur
 Also unlike `mtl`, there can be more than one `State` or `Reader` effect in a signature. This is a tradeoff: `mtl` is able to provide excellent type inference for effectful operations like `get`, since the functional dependencies can resolve the state type from the monad type. On the other hand, this behaviour can be recovered in `fused-effects` using `newtype` wrappers with phantom type parameters and helper functions, e.g.:
 
 ```haskell
-newtype Wrapper s m a = Wrapper { runWrapper :: m a }
-  deriving (Applicative, Functor, Monad)
+newtype Wrapper s m a = Wrapper { runWrapper :: TransC '[] m a }
+  deriving (AlgebraTrans, Applicative, Carrier n, Functor, Monad)
 
-instance Algebra sig m => Algebra sig (Wrapper s m) where
-  alg = Wrapper . handleCoercible
 
-getState :: Has (State s) sig m => Wrapper s m s
+getState :: Has' (State s) m => Wrapper s m s
 getState = get
 ```
 
 Indeed, `Wrapper` can now be made an instance of `MonadState`:
 
 ```haskell
-instance Has (State s) sig m => MTL.MonadState s (Wrapper s m) where
+instance Has' (State s) m => MTL.MonadState s (Wrapper s m) where
   get = Control.Carrier.State.Strict.get
   put = Control.Carrier.State.Strict.put
 ```

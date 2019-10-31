@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExplicitForAll, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExplicitForAll, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | A carrier for the 'State' effect. It evaluates its inner state strictly, which is the correct choice for the majority of use cases.
 
@@ -111,7 +111,21 @@ instance MonadTrans (StateC s) where
   {-# INLINE lift #-}
 
 instance (Algebra sig m, Weaves ((,) s) sig) => Algebra (State s :+: sig) (StateC s m) where
-  alg (L (Get   k)) = StateC (\ s -> runState s (k s))
-  alg (L (Put s k)) = StateC (\ _ -> runState s k)
-  alg (R other)     = StateC (\ s -> alg (weave (s, ()) (uncurry runState) other))
+  alg (L s)     = eff s
+  alg (R other) = StateC (\ s -> alg (weave (s, ()) (uncurry runState) other))
   {-# INLINE alg #-}
+
+
+instance Monad m => Carrier m (StateC s) where
+  type Eff (StateC s) = State s
+
+  eff (Get   k) = StateC (\ s -> runState s (k s))
+  eff (Put s k) = StateC (\ _ -> runState s k)
+  {-# INLINE eff #-}
+
+
+instance AlgebraTrans (StateC s) where
+  type Context (StateC s) = ((,) s)
+
+  liftWithC f = StateC (\ s -> f (s, ()) (uncurry runState))
+  {-# INLINE liftWithC #-}

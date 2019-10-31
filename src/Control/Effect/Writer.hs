@@ -22,8 +22,8 @@ module Control.Effect.Writer
 , listens
 , censor
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -37,7 +37,7 @@ import Control.Effect.Writer.Internal (Writer(..))
 -- @
 --
 -- @since 0.1.0.0
-tell :: Has (Writer w) sig m => w -> m ()
+tell :: Has' (Writer w) m => w -> m ()
 tell w = send (Tell w (pure ()))
 {-# INLINE tell #-}
 
@@ -48,7 +48,7 @@ tell w = send (Tell w (pure ()))
 -- @
 --
 -- @since 0.2.0.0
-listen :: Has (Writer w) sig m => m a -> m (w, a)
+listen :: Has' (Writer w) m => m a -> m (w, a)
 listen m = send (Listen m (curry pure))
 {-# INLINE listen #-}
 
@@ -59,7 +59,7 @@ listen m = send (Listen m (curry pure))
 -- @
 --
 -- @since 0.2.0.0
-listens :: Has (Writer w) sig m => (w -> b) -> m a -> m (b, a)
+listens :: Has' (Writer w) m => (w -> b) -> m a -> m (b, a)
 listens f m = send (Listen m (curry pure . f))
 {-# INLINE listens #-}
 
@@ -70,6 +70,6 @@ listens f m = send (Listen m (curry pure . f))
 -- @
 --
 -- @since 0.2.0.0
-censor :: Has (Writer w) sig m => (w -> w) -> m a -> m a
+censor :: Has' (Writer w) m => (w -> w) -> m a -> m a
 censor f m = send (Censor f m pure)
 {-# INLINE censor #-}

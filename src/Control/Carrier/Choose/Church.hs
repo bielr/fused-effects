@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | A carrier for 'Choose' effects (nondeterminism without failure).
 
@@ -82,9 +82,14 @@ instance MonadTrans ChooseC where
   lift m = ChooseC (\ _ leaf -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance (Algebra sig m, Weaves (ChooseC Identity) sig) => Algebra (Choose :+: sig) (ChooseC m) where
-  alg (L (Choose k)) = ChooseC $ \ fork leaf -> fork (runChoose fork leaf (k True)) (runChoose fork leaf (k False))
-  alg (R other)      = ChooseC $ \ fork leaf -> alg (weave (pure ()) dst other) >>= runIdentity . runChoose (coerce fork) (coerce leaf) where
+instance Monad m => Carrier m ChooseC where
+  type Eff ChooseC = Choose
+  eff (Choose k) = ChooseC $ \ fork leaf -> fork (runChoose fork leaf (k True)) (runChoose fork leaf (k False))
+
+instance AlgebraTrans ChooseC where
+  type Context ChooseC = ChooseC Identity
+
+  liftWithC f = ChooseC $ \ fork leaf -> f (pure ()) dst >>= runIdentity . runChoose (coerce fork) (coerce leaf) where
     dst :: Applicative m => ChooseC Identity (ChooseC m a) -> m (ChooseC Identity a)
     dst = runIdentity . runChoose (liftA2 (liftA2 (<|>))) (pure . runChoose (liftA2 (<|>)) (pure . pure))
-  {-# INLINE alg #-}
+  {-# INLINE liftWithC #-}

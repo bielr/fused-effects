@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | Provides 'NonDetC', a carrier for 'NonDet' effects providing choice and failure.
 
@@ -106,6 +106,22 @@ instance MonadPlus (NonDetC m)
 instance MonadTrans NonDetC where
   lift m = NonDetC (\ _ leaf _ -> m >>= leaf)
   {-# INLINE lift #-}
+
+instance Monad m => Carrier m NonDetC where
+  type Eff NonDetC = NonDet
+
+  eff (L Empty)      = empty
+  eff (R (Choose k)) = k True <|> k False
+  {-# INLINE eff #-}
+
+
+instance AlgebraTrans NonDetC where
+  type Context NonDetC = NonDetC Identity
+  liftWithC f = NonDetC $ \ fork leaf nil -> f (pure ()) dst >>= runIdentity . runNonDet (coerce fork) (coerce leaf) (coerce nil) where
+    dst :: Applicative m => NonDetC Identity (NonDetC m a) -> m (NonDetC Identity a)
+    dst = runIdentity . runNonDet (liftA2 (liftA2 (<|>))) (Identity . runNonDetA) (pure (pure empty))
+  {-# INLINE liftWithC #-}
+
 
 instance (Algebra sig m, Weaves (NonDetC Identity) sig) => Algebra (NonDet :+: sig) (NonDetC m) where
   alg (L (L Empty))      = empty

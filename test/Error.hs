@@ -32,11 +32,11 @@ tests = testGroup "Error" $
   testError    run = Error.test e  (m (gen0 e) (genN e)) a b   initial run
   initial = identity <*> unit
 
-gen0 :: Has (Error e) sig m => GenTerm e -> GenTerm a -> [GenTerm (m a)]
+gen0 :: Has' (Error e) m => GenTerm e -> GenTerm a -> [GenTerm (m a)]
 gen0 = Throw.gen0
 
 genN
-  :: (Has (Error e) sig m, Arg e, Show e, Vary e)
+  :: (Has' (Error e) m, Arg e, Show e, Vary e)
   => GenTerm e
   -> GenM m
   -> GenTerm a
@@ -45,7 +45,7 @@ genN = Catch.genN
 
 
 test
-  :: (Has (Error e) sig m, Arg a, Arg e, Eq a, Eq b, Eq e, Show a, Show b, Show e, Vary a, Vary e, Functor f)
+  :: (Has' (Error e) m, Arg a, Arg e, Eq a, Eq b, Eq e, Show a, Show b, Show e, Vary a, Vary e, Functor f)
   => GenTerm e
   -> GenM m
   -> GenTerm a

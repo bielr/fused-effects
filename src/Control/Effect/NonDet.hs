@@ -19,8 +19,8 @@ module Control.Effect.NonDet
 , foldMapA
   -- * Re-exports
 , Alternative(..)
-, Algebra
-, Has
+, Algebra'
+, Has'
 , MonadPlus(..)
 , guard
 , optional

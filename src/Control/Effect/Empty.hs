@@ -16,8 +16,8 @@ module Control.Effect.Empty
 , empty
 , guard
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -33,12 +33,12 @@ import Control.Effect.Empty.Internal (Empty(..))
 -- @
 --
 -- @since 1.0.0.0
-empty :: Has Empty sig m => m a
+empty :: Has' Empty m => m a
 empty = send Empty
 
 -- | Conditional failure, returning only if the condition is 'True'.
 --
 -- @since 1.0.0.0
-guard :: Has Empty sig m => Bool -> m ()
+guard :: Has' Empty m => Bool -> m ()
 guard True  = pure ()
 guard False = empty

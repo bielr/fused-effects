@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 {-# language TypeFamilies #-}
 
 -- | A carrier for an 'Error' effect.
@@ -41,7 +41,7 @@ runError (ErrorC m) = runExceptT m
 
 -- | @since 0.1.0.0
 newtype ErrorC e m a = ErrorC (ExceptT e m a)
-  deriving (Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadTrans)
+  deriving (AlgebraTrans, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadTrans)
 
 -- | 'ErrorC' passes 'Alternative' operations along to the underlying monad @m@, rather than combining errors à la 'ExceptT'.
 instance (Alternative m, Monad m) => Alternative (ErrorC e m) where
@@ -63,8 +63,5 @@ instance (Algebra sig m, Weaves (Either e) sig) => Algebra (Error e :+: sig) (Er
 
 instance Monad m => Carrier m (ErrorC e) where
   type Eff (ErrorC e) = Error e
-  eff = undefined
-
-instance (Algebra' m, AlgebraTrans m (ExceptT e)) => AlgebraTrans m (ErrorC e) where
-  type Context (ErrorC e) = Context (ExceptT e)
-  liftedAlg = ErrorC . liftedAlg . hmap coerce
+  eff op = ErrorC (eff (hmap coerce op))
+  {-# inline eff #-}

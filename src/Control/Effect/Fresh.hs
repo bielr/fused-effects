@@ -12,8 +12,8 @@ module Control.Effect.Fresh
   Fresh(..)
 , fresh
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -35,5 +35,5 @@ instance Functor ctx => Weaves ctx Fresh
 -- @
 --
 -- @since 0.1.0.0
-fresh :: Has Fresh sig m => m Int
+fresh :: Has' Fresh m => m Int
 fresh = send (Fresh pure)

@@ -5,6 +5,7 @@ module Inference
 
 import Control.Algebra
 import Control.Carrier.Reader
+import Control.Monad.Trans.Identity
 import Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
@@ -31,20 +32,16 @@ example = testGroup "inference"
 --   Like 'ask', 'askEnv' uses the same type parameter for both the 'Reader' and return types. Unlike 'ask'—which doesn’t impose any extra structure on the monad—it’s specialized to 'HasEnv', and uses the /same/ type parameter as its phantom type parameter.
 --
 --   Thus, any two calls to 'askEnv' occurring in the same 'HasEnv' context will be required to have their @env@ type parameters unify, allowing them to be inferred from context more often.
-askEnv :: Has (Reader env) sig m => HasEnv env m env
+askEnv :: Has' (Reader env) m => HasEnv env m env
 askEnv = ask
 
 -- | A handler for 'HasEnv' & 'ReaderC' with the same @env@ parameter.
 --
 --   Any 'askEnv's occurring in the second argument will have to unify not only with each other, but also with the first argument. Thus, if @ghc@ can infer the type of the any of these, it can infer all of them.
 runEnv :: env -> HasEnv env (ReaderC env m) a -> m a
-runEnv r = runReader r . runHasEnv
+runEnv r = runReader r . runIdentityT . runHasEnv
 
 
 -- | The identity monad transformer, with an extra phantom type parameter.
-newtype HasEnv env m a = HasEnv { runHasEnv :: m a }
-  deriving (Applicative, Functor, Monad)
-
--- | The 'Carrier' instance for 'HasEnv' simply delegates all effects to the underlying carrier.
-instance Algebra sig m => Algebra sig (HasEnv env m) where
-  alg = HasEnv . handleCoercible
+newtype HasEnv env m a = HasEnv { runHasEnv :: IdentityT m a }
+  deriving (AlgebraTrans, Applicative, Carrier n, Functor, Monad)

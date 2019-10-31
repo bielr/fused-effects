@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | A carrier for 'Writer' effects. This carrier performs its append operations strictly and thus avoids the space leaks inherent in lazy writer monads.
 
@@ -52,19 +52,34 @@ execWriter = fmap fst . runWriter
 --
 -- @since 1.0.0.0
 newtype WriterC w m a = WriterC (StateC w m a)
-  deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
+  deriving (AlgebraTrans, Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Monoid w, Algebra sig m, Weaves ((,) w) sig) => Algebra (Writer w :+: sig) (WriterC w m) where
-  alg (L (Tell w     k)) = WriterC (modify (`mappend` w)) >> k
-  alg (L (Listen   m k)) = WriterC (StateC (\ w -> do
+-- instance (Monoid w, Algebra sig m, Weaves ((,) w) sig) => Algebra (Writer w :+: sig) (WriterC w m) where
+--   alg (L (Tell w     k)) = WriterC (modify (`mappend` w)) >> k
+--   alg (L (Listen   m k)) = WriterC (StateC (\ w -> do
+--     (w', a) <- runWriter m
+--     let w'' = mappend w w'
+--     w'' `seq` pure (w'', (w', a))))
+--     >>= uncurry k
+--   alg (L (Censor f m k)) = WriterC (StateC (\ w -> do
+--     (w', a) <- runWriter m
+--     let w'' = mappend w (f w')
+--     w'' `seq` pure (w'', a)))
+--     >>= k
+--   alg (R other)          = WriterC (handleCoercible other)
+--   {-# INLINE alg #-}
+
+instance (Monad m, Algebra' (StateC w m), Monoid w) => Carrier m (WriterC w) where
+  type Eff (WriterC w) = Writer w
+  eff (Tell w     k) = WriterC (modify (`mappend` w)) >> k
+  eff (Listen   m k) = WriterC (StateC (\ w -> do
     (w', a) <- runWriter m
     let w'' = mappend w w'
     w'' `seq` pure (w'', (w', a))))
     >>= uncurry k
-  alg (L (Censor f m k)) = WriterC (StateC (\ w -> do
+  eff (Censor f m k) = WriterC (StateC (\ w -> do
     (w', a) <- runWriter m
     let w'' = mappend w (f w')
     w'' `seq` pure (w'', a)))
     >>= k
-  alg (R other)          = WriterC (handleCoercible other)
-  {-# INLINE alg #-}
+  {-# INLINE eff #-}

@@ -1,4 +1,4 @@
-{-# LANGUAGE BlockArguments, ConstraintKinds, DataKinds, DefaultSignatures, DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, KindSignatures, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds, DataKinds, DefaultSignatures, DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, KindSignatures, InstanceSigs, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 {- | The 'Algebra' class is the mechanism with which effects are interpreted.
 
@@ -10,6 +10,7 @@ module Control.Algebra
 ( Algebra(..)
 , run
 , Has
+, Has'
 , send
 , handleIdentity
 , handleCoercible
@@ -19,9 +20,11 @@ module Control.Algebra
 , Carrier(..)
 , AlgebraTrans(..)
 , Algebra'(..)
+, liftedAlg
+, liftIdentityWithC
+, liftCoercibleWithC
 ) where
 
-import Control.Carrier.Trans
 import Control.Effect.Catch.Internal
 import Control.Effect.Choose.Internal
 import Control.Effect.Class
@@ -35,12 +38,10 @@ import Control.Effect.Sum ((:+:)(..), Member(..), Members)
 import Control.Effect.Throw.Internal
 import Control.Effect.Writer.Internal
 import Control.Monad ((<=<))
-import Data.Functor (($>))
-import Data.Functor.Compose
 import Data.Functor.Identity
-import Control.Monad.Trans.Class (MonadTrans(..))
 import qualified Control.Monad.Trans.Except as Except
 import qualified Control.Monad.Trans.Identity as Identity
+import qualified Control.Monad.Trans.Maybe as Maybe
 import qualified Control.Monad.Trans.Reader as Reader
 import qualified Control.Monad.Trans.RWS.Lazy as RWS.Lazy
 import qualified Control.Monad.Trans.RWS.Strict as RWS.Strict
@@ -48,7 +49,6 @@ import qualified Control.Monad.Trans.State.Lazy as State.Lazy
 import qualified Control.Monad.Trans.State.Strict as State.Strict
 import qualified Control.Monad.Trans.Writer.Lazy as Writer.Lazy
 import qualified Control.Monad.Trans.Writer.Strict as Writer.Strict
-import GHC.Generics hiding (type (:+:))
 import Data.Coerce
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Semigroup as S
@@ -56,9 +56,10 @@ import Data.Tuple (swap)
 
 
 
-class (HFunctor (Eff t), Monad m, Monad (t m), MonadTrans t) => Carrier m t where
+class (HFunctor (Eff t), Monad m, Monad (t m)) => Carrier m t where
   type Eff t :: (* -> *) -> * -> *
   eff :: Eff t (t m) a -> t m a
+
 
 class (HFunctor (Sig m), Monad m) => Algebra' m where
   type Sig m :: (* -> *) -> * -> *
@@ -76,40 +77,49 @@ class Functor (Context t) => AlgebraTrans t where
     -> t m a
 
 
+liftIdentityWithC
+  :: Functor n
+  => (forall x. m x -> n x)
+  -> (Identity () -> (forall x. Identity (m x) -> n (Identity x)) -> n (Identity a))
+  -> n a
+liftIdentityWithC g f = runIdentity <$> f (Identity ()) (fmap Identity . g . runIdentity)
+{-# inline liftIdentityWithC #-}
+
+
+liftCoercibleWithC
+  :: forall t t' m a. (AlgebraTrans t', Coercible t t', Monad m)
+  => (forall n x. t' n x -> t n x)
+  -> (Context t' ()
+      -> (forall x. Context t' (t m x) -> m (Context t' x))
+      -> m (Context t' a))
+  -> t m a
+liftCoercibleWithC mkT f = mkT $ liftWithC $ \ctx hdl -> f ctx (hdl . fmap coerce)
+{-# inline liftCoercibleWithC #-}
+
+
 liftedAlg
   :: (Algebra' m, AlgebraTrans t, Monad (t m), Weaves (Context t) (Sig m))
   => Sig m (t m) a
   -> t m a
 liftedAlg sig = liftWithC (\ctx hdl -> alg' (weave ctx hdl sig))
+{-# inline liftedAlg #-}
 
 
--- class Algebra' m => HelperTransC ts m where
---   liftedAlgTransC :: Sig m (TransC ts m) a -> TransC ts m a
---
--- instance (Algebra' m) => HelperTransC '[] m where
---   liftedAlgTransC = TransC . alg' . hmap runTransC
---
--- instance (Algebra' m, HFunctor (Sig m), HFunctor t, Monad (ApplyTrans ts m), HelperTransC ts m) => HelperTransC (t ': ts) m where
---   liftedAlgTransC = pushTransC . liftedAlgTransC . hmap peelTransC
+instance {-# overlappable #-}
+  ( Carrier m t
+  , Algebra' m
+  , AlgebraTrans t
+  , HFunctor (Sig m)
+  , Monad (t m)
+  , Weaves (Context t) (Sig m)
+  )
+  => Algebra' (t m) where
 
-instance
-  ( AlgebraTrans t
-  , AlgebraTrans t'
-  , forall m. Monad m => Monad (t' m)
-  ) => AlgebraTrans (ComposeC t t') where
-  type Context (ComposeC t t') = Compose (Context t') (Context t)
-  liftWithC f = ComposeC $
-    liftWithC \ctx hdl ->
-      liftWithC \ctx' hdl' ->
-        fmap getCompose $
-          f (Compose (ctx' $> ctx))
-            (fmap Compose . hdl' . fmap hdl . getCompose . fmap runComposeC)
+  type Sig (t m) = Eff t :+: Sig m
 
-
--- instance {-# overlappable #-} (Carrier m t, AlgebraTrans m t, Monad (t m)) => Algebra' (t m) where
---   type Sig (t m) = Eff t :+: Sig m
---   alg' (L e) = eff e
---   alg' (R o) = liftedAlg o
+  alg' (L e) = eff e
+  alg' (R o) = liftedAlg o
+  {-# inline alg' #-}
 
 
 
@@ -139,12 +149,13 @@ run = runIdentity
 --
 -- @since 1.0.0.0
 type Has eff sig m = (Members eff sig, Algebra sig m)
+type Has' eff m = (Members eff (Sig m), Algebra' m)
 
 -- | Construct a request for an effect to be interpreted by some handler later on.
 --
 -- @since 0.1.0.0
-send :: (Member eff sig, Algebra sig m) => eff m a -> m a
-send = alg . inj
+send :: (Member eff (Sig m), Algebra' m) => eff m a -> m a
+send = alg' . inj
 {-# INLINE send #-}
 
 
@@ -154,7 +165,7 @@ send = alg . inj
 --
 -- @since 1.0.0.0
 handleIdentity :: (Monad m, Weaves Identity eff, Member eff sig, Algebra sig n) => (forall x . m x -> n x) -> eff m a -> n a
-handleIdentity f = fmap runIdentity . send . weave (Identity ()) (fmap Identity . f . runIdentity)
+handleIdentity f = fmap runIdentity . alg . inj . weave (Identity ()) (fmap Identity . f . runIdentity)
 {-# INLINE handleIdentity #-}
 
 -- | Thread a 'Coercible' carrier through an effect.
@@ -173,6 +184,40 @@ instance Algebra'  IO where
   type Sig IO = Lift IO
   alg' (LiftWith with k) = with (Identity ()) coerce >>= k . runIdentity
 
+instance Algebra' Identity where
+  type Sig Identity = Lift Identity
+  alg' (LiftWith with k) = with (Identity ()) coerce >>= k . runIdentity
+
+instance Algebra' NonEmpty where
+  type Sig NonEmpty = Choose
+  alg' (Choose m) = m True S.<> m False
+
+instance Algebra' Maybe where
+  type Sig Maybe = Empty
+  alg' Empty = Nothing
+
+instance Algebra' (Either e) where
+  type Sig (Either e) = Error e
+  alg' (L (Throw e))     = Left e
+  alg' (R (Catch m h k)) = either (k <=< h) k m
+
+instance Algebra' ((->) r) where
+  type Sig ((->) r) = Reader r
+  alg' (Ask       k) r = k r r
+  alg' (Local f m k) r = k (m (f r)) r
+
+instance Algebra' [] where
+  type Sig [] = NonDet
+  alg' (L Empty)      = []
+  alg' (R (Choose k)) = k True ++ k False
+
+instance Monoid w => Algebra' ((,) w) where
+  type Sig ((,) w) = Writer w
+  alg' (Tell w (w', k))    = (mappend w w', k)
+  alg' (Listen (w, a) k)   = let (w', a') = k w a in (mappend w w', a')
+  alg' (Censor f (w, a) k) = let (w', a') = k a in (mappend (f w) w', a')
+
+
 instance Algebra (Lift IO) IO where
   alg (LiftWith with k) = with (Identity ()) coerce >>= k . runIdentity
 
@@ -181,10 +226,6 @@ instance Algebra (Lift Identity) Identity where
 
 instance Algebra Choose NonEmpty where
   alg (Choose m) = m True S.<> m False
-
-instance Algebra' NonEmpty where
-  type Sig NonEmpty = Choose
-  alg' (Choose m) = m True S.<> m False
 
 instance Algebra Empty Maybe where
   alg Empty = Nothing
@@ -211,13 +252,144 @@ instance Monoid w => Algebra (Writer w) ((,) w) where
 
 instance Monad m => Carrier m (Except.ExceptT e) where
   type Eff (Except.ExceptT e) = Error e
+
   eff (L (Throw e))     = Except.throwE e
   eff (R (Catch m h k)) = Except.catchE m h >>= k
-
+  {-# INLINE eff #-}
 
 instance AlgebraTrans (Except.ExceptT e) where
   type Context (Except.ExceptT e) = Either e
-  liftWithC f = Except.ExceptT $ f (Right ()) (either (pure . Left) Except.runExceptT)
+
+  liftWithC f = Except.ExceptT $
+    f (Right ()) (either (pure . Left) Except.runExceptT)
+  {-# INLINE liftWithC #-}
+
+
+instance Monad m => Carrier m Identity.IdentityT where
+  type Eff Identity.IdentityT = Identity.IdentityT
+  eff = Identity.runIdentityT
+  {-# INLINE eff #-}
+
+instance AlgebraTrans Identity.IdentityT where
+  type Context Identity.IdentityT = Identity
+
+  liftWithC f = Identity.IdentityT (liftIdentityWithC Identity.runIdentityT f)
+  {-# INLINE liftWithC #-}
+
+
+instance Monad m => Carrier m Maybe.MaybeT where
+  type Eff Maybe.MaybeT = Empty
+  eff Empty = Maybe.MaybeT (return Nothing)
+  {-# INLINE eff #-}
+
+instance AlgebraTrans Maybe.MaybeT where
+  type Context Maybe.MaybeT = Maybe
+
+  liftWithC f = Maybe.MaybeT $
+    f (Just ()) (maybe (pure Nothing) Maybe.runMaybeT)
+  {-# INLINE liftWithC #-}
+
+
+instance Monad m => Carrier m (Reader.ReaderT r) where
+  type Eff (Reader.ReaderT r) = Reader r
+
+  eff (Ask       k) = Reader.ask >>= k
+  eff (Local f m k) = Reader.local f m >>= k
+
+instance AlgebraTrans (Reader.ReaderT r) where
+  type Context (Reader.ReaderT r) = Identity
+
+  liftWithC f = Reader.ReaderT $ \r -> liftIdentityWithC (`Reader.runReaderT` r) f
+
+
+instance (Monad m, Monoid w) => Carrier m (RWS.Lazy.RWST r w s) where
+  type Eff (RWS.Lazy.RWST r w s) = Reader r :+: Writer w :+: State s
+
+  eff (L (Ask       k))      = RWS.Lazy.ask >>= k
+  eff (L (Local f m k))      = RWS.Lazy.local f m >>= k
+  eff (R (L (Tell w k)))     = RWS.Lazy.tell w *> k
+  eff (R (L (Listen m k)))   = RWS.Lazy.listen m >>= uncurry (flip k)
+  eff (R (L (Censor f m k))) = RWS.Lazy.censor f m >>= k
+  eff (R (R (Get   k)))      = RWS.Lazy.get >>= k
+  eff (R (R (Put s k)))      = RWS.Lazy.put s *> k
+
+instance Monoid w => AlgebraTrans (RWS.Lazy.RWST r w s) where
+  type Context (RWS.Lazy.RWST r w s) = RWSTF w s
+
+  liftWithC f = RWS.Lazy.RWST $ \r s ->
+      unRWSTF <$> f (RWSTF ((), s, mempty)) (\ (RWSTF (x, s, w)) -> toRWSTF w <$> RWS.Lazy.runRWST x r s)
+
+
+instance (Monad m, Monoid w) => Carrier m (RWS.Strict.RWST r w s) where
+  type Eff (RWS.Strict.RWST r w s) = Reader r :+: Writer w :+: State s
+
+  eff (L (Ask       k))      = RWS.Strict.ask >>= k
+  eff (L (Local f m k))      = RWS.Strict.local f m >>= k
+  eff (R (L (Tell w k)))     = RWS.Strict.tell w *> k
+  eff (R (L (Listen m k)))   = RWS.Strict.listen m >>= uncurry (flip k)
+  eff (R (L (Censor f m k))) = RWS.Strict.censor f m >>= k
+  eff (R (R (Get   k)))      = RWS.Strict.get >>= k
+  eff (R (R (Put s k)))      = RWS.Strict.put s *> k
+
+instance Monoid w => AlgebraTrans (RWS.Strict.RWST r w s) where
+  type Context (RWS.Strict.RWST r w s) = RWSTF w s
+
+  liftWithC f = RWS.Strict.RWST $ \r s ->
+      unRWSTF <$> f (RWSTF ((), s, mempty)) (\ (RWSTF (x, s, w)) -> toRWSTF w <$> RWS.Strict.runRWST x r s)
+
+
+instance Monad m => Carrier m (State.Lazy.StateT s) where
+  type Eff (State.Lazy.StateT s) = State s
+
+  eff (Get   k) = State.Lazy.get >>= k
+  eff (Put s k) = State.Lazy.put s *> k
+
+instance AlgebraTrans (State.Lazy.StateT s) where
+  type Context (State.Lazy.StateT s) = ((,) s)
+
+  liftWithC f = State.Lazy.StateT $ \s ->
+      swap <$> f (s, ()) (\ (s, x) -> swap <$> State.Lazy.runStateT x s)
+
+
+instance Monad m => Carrier m (State.Strict.StateT s) where
+  type Eff (State.Strict.StateT s) = State s
+
+  eff (Get   k) = State.Strict.get >>= k
+  eff (Put s k) = State.Strict.put s *> k
+
+instance AlgebraTrans (State.Strict.StateT s) where
+  type Context (State.Strict.StateT s) = ((,) s)
+
+  liftWithC f = State.Strict.StateT $ \s ->
+      swap <$> f (s, ()) (\ (s, x) -> swap <$> State.Strict.runStateT x s)
+
+
+instance (Monad m, Monoid w) => Carrier m (Writer.Lazy.WriterT w) where
+  type Eff (Writer.Lazy.WriterT w) = Writer w
+
+  eff (Tell w k)     = Writer.Lazy.tell w *> k
+  eff (Listen m k)   = Writer.Lazy.listen m >>= uncurry (flip k)
+  eff (Censor f m k) = Writer.Lazy.censor f m >>= k
+
+instance Monoid w => AlgebraTrans (Writer.Lazy.WriterT w) where
+  type Context (Writer.Lazy.WriterT w) = ((,) w)
+
+  liftWithC f = Writer.Lazy.WriterT $
+    swap <$> f (mempty, ()) (\ (s, x) -> swap . fmap (mappend s) <$> Writer.Lazy.runWriterT x)
+
+
+instance (Monad m, Monoid w) => Carrier m (Writer.Strict.WriterT w) where
+  type Eff (Writer.Strict.WriterT w) = Writer w
+
+  eff (Tell w k)     = Writer.Strict.tell w *> k
+  eff (Listen m k)   = Writer.Strict.listen m >>= uncurry (flip k)
+  eff (Censor f m k) = Writer.Strict.censor f m >>= k
+
+instance Monoid w => AlgebraTrans (Writer.Strict.WriterT w) where
+  type Context (Writer.Strict.WriterT w) = ((,) w)
+
+  liftWithC f = Writer.Strict.WriterT $
+    swap <$> f (mempty, ()) (\ (s, x) -> swap . fmap (mappend s) <$> Writer.Strict.runWriterT x)
 
 
 instance (Algebra sig m, Weaves (Either e) sig) => Algebra (Error e :+: sig) (Except.ExceptT e m) where

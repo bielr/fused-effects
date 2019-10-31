@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleInstances, MultiParamTypeClasses, RankNTypes, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for 'Cut' and 'NonDet' effects used in tandem (@Cut :+: NonDet@).
 --
@@ -89,12 +89,20 @@ instance MonadTrans CutC where
   lift m = CutC (\ cons nil _ -> m >>= flip cons nil)
   {-# INLINE lift #-}
 
-instance (Algebra sig m, Weaves (CutC Identity) sig) => Algebra (Cut :+: NonDet :+: sig) (CutC m) where
-  alg (L Cutfail)    = CutC $ \ _    _   fail -> fail
-  alg (L (Call m k)) = CutC $ \ cons nil fail -> runCut (\ a as -> runCut cons as fail (k a)) nil nil m
-  alg (R (L (L Empty)))      = empty
-  alg (R (L (R (Choose k)))) = k True <|> k False
-  alg (R (R other))          = CutC $ \ cons nil fail -> alg (weave (pure ()) dst other) >>= runIdentity . runCut (coerce cons) (coerce nil) (coerce fail) where
+
+instance Monad m => Carrier m CutC where
+  type Eff CutC = Cut :+: NonDet
+
+  eff (L Cutfail)        = CutC $ \ _    _   fail -> fail
+  eff (L (Call m k))     = CutC $ \ cons nil fail -> runCut (\ a as -> runCut cons as fail (k a)) nil nil m
+  eff (R (L Empty))      = empty
+  eff (R (R (Choose k))) = k True <|> k False
+  {-# INLINE eff #-}
+
+instance AlgebraTrans CutC where
+  type Context CutC = CutC Identity
+
+  liftWithC f = CutC $ \ cons nil fail -> f (pure ()) dst >>= runIdentity . runCut (coerce cons) (coerce nil) (coerce fail) where
     dst :: Applicative m => CutC Identity (CutC m a) -> m (CutC Identity a)
     dst = runIdentity . runCut (fmap . liftA2 (<|>) . runCut (fmap . (<|>) . pure) (pure empty) (pure cutfail)) (pure (pure empty)) (pure (pure cutfail))
-  {-# INLINE alg #-}
+  {-# INLINE liftWithC #-}

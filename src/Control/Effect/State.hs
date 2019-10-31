@@ -23,8 +23,8 @@ module Control.Effect.State
 , modify
 , modifyLazy
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -38,7 +38,7 @@ import Control.Effect.State.Internal (State(..))
 -- @
 --
 -- @since 0.1.0.0
-get :: Has (State s) sig m => m s
+get :: Has' (State s) m => m s
 get = send (Get pure)
 {-# INLINEABLE get #-}
 
@@ -49,7 +49,7 @@ get = send (Get pure)
 -- @
 --
 -- @since 0.1.0.0
-gets :: Has (State s) sig m => (s -> a) -> m a
+gets :: Has' (State s) m => (s -> a) -> m a
 gets f = send (Get (pure . f))
 {-# INLINEABLE gets #-}
 
@@ -60,7 +60,7 @@ gets f = send (Get (pure . f))
 -- @
 --
 -- @since 0.1.0.0
-put :: Has (State s) sig m => s -> m ()
+put :: Has' (State s) m => s -> m ()
 put s = send (Put s (pure ()))
 {-# INLINEABLE put #-}
 
@@ -72,7 +72,7 @@ put s = send (Put s (pure ()))
 -- @
 --
 -- @since 0.1.0.0
-modify :: Has (State s) sig m => (s -> s) -> m ()
+modify :: Has' (State s) m => (s -> s) -> m ()
 modify f = do
   a <- get
   put $! f a
@@ -86,6 +86,6 @@ modify f = do
 -- @
 --
 -- @since 0.3.0.0
-modifyLazy :: Has (State s) sig m => (s -> s) -> m ()
+modifyLazy :: Has' (State s) m => (s -> s) -> m ()
 modifyLazy f = get >>= put . f
 {-# INLINEABLE modifyLazy #-}

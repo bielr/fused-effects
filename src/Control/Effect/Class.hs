@@ -12,6 +12,7 @@ module Control.Effect.Class
 , GWeaves(..)
 ) where
 
+import Control.Monad.Trans.Identity
 import Data.Coerce
 import Data.Functor.Identity
 import GHC.Generics
@@ -35,6 +36,7 @@ class (Functor ctx, forall m. Monad m => Functor (sig m)) => Weaves ctx sig wher
     -> (forall x . ctx (m x) -> n (ctx x))
     -> sig m a
     -> sig n (ctx a)
+
   default weave
     :: (Monad m, Monad n, Generic1 (sig m), Generic1 (sig n), GWeaves ctx m n (Rep1 (sig m)) (Rep1 (sig n)))
     => ctx ()                              -- ^ The initial context.
@@ -43,6 +45,10 @@ class (Functor ctx, forall m. Monad m => Functor (sig m)) => Weaves ctx sig wher
     -> sig n (ctx a)
   weave ctx handler = to1 . gweave ctx handler . from1
   {-# INLINE weave #-}
+
+
+instance Functor ctx => Weaves ctx IdentityT where
+  weave ctx hdl = IdentityT . hdl . (<$ ctx) . runIdentityT
 
 
 type HFunctor sig = Weaves Identity sig

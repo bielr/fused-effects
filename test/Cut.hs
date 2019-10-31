@@ -38,16 +38,16 @@ tests = testGroup "Cut"
   initial = identity <*> unit
 
 
-gen0 :: (Has Cut sig m, Has NonDet sig m) => GenTerm a -> [GenTerm (m a)]
+gen0 :: (Has' Cut m, Has' NonDet m) => GenTerm a -> [GenTerm (m a)]
 gen0 a = label "cutfail" cutfail : NonDet.gen0 a
 
-genN :: (Has Cut sig m, Has NonDet sig m) => GenM m -> GenTerm a -> [GenTerm (m a)]
+genN :: (Has' Cut m, Has' NonDet m) => GenM m -> GenTerm a -> [GenTerm (m a)]
 genN m a = subtermM (m a) (label "call" call <*>) : NonDet.genN m a
 
 
 test
-  :: forall a b m f sig
-  .  (Has Cut sig m, Has NonDet sig m, Arg a, Eq a, Eq b, Show a, Show b, Vary a, Functor f)
+  :: forall a b m f
+  .  (Has' Cut m, Has' NonDet m, Arg a, Eq a, Eq b, Show a, Show b, Vary a, Functor f)
   => (forall a . m a -> m a)
   -> GenM m
   -> GenTerm a

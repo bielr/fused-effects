@@ -41,12 +41,12 @@ tests = testGroup "Writer"
   runRWST f m = (\ (a, _, w) -> (w, a)) <$> f m () ()
 
 
-gen0 :: Has (Writer w) sig m => GenTerm w -> GenTerm a -> [GenTerm (m a)]
+gen0 :: Has' (Writer w) m => GenTerm w -> GenTerm a -> [GenTerm (m a)]
 gen0 w a = [ infixL 4 "<$" (<$) <*> a <*> (label "tell" tell <*> w) ]
 
 genN
-  :: forall w b m a sig
-  .  (Has (Writer w) sig m, Arg b, Arg w, Show b, Show w, Vary b, Vary w)
+  :: forall w b m a
+  .  (Has' (Writer w) m, Arg b, Arg w, Show b, Show w, Vary b, Vary w)
   => GenTerm w
   -> GenTerm b
   -> GenM m
@@ -59,7 +59,7 @@ genN w b m a =
 
 
 test
-  :: (Has (Writer w) sig m, Arg w, Eq a, Eq w, Monoid w, Show a, Show w, Vary w, Functor f)
+  :: (Has' (Writer w) m, Arg w, Eq a, Eq w, Monoid w, Show a, Show w, Vary w, Functor f)
   => GenTerm w
   -> GenM m
   -> GenTerm a

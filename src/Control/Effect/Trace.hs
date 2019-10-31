@@ -16,8 +16,8 @@ module Control.Effect.Trace
   Trace(..)
 , trace
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -36,5 +36,5 @@ instance Functor ctx => Weaves ctx Trace
 -- | Append a message to the trace log.
 --
 -- @since 0.1.0.0
-trace :: Has Trace sig m => String -> m ()
+trace :: Has' Trace m => String -> m ()
 trace message = send (Trace message (pure ()))

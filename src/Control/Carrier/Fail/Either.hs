@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeFamilies, TypeOperators, UndecidableInstances #-}
 
 -- | A carrier for a 'Fail' effect, returning the result as an 'Either' 'String'. Failed computations will return a 'Left' containing the 'String' value passed to 'Fail.fail'.
 --
@@ -36,14 +36,13 @@ runFail (FailC m) = runThrow m
 
 -- | @since 1.0.0.0
 newtype FailC m a = FailC (ThrowC String m a)
-  deriving (Alternative, Applicative, Functor, Monad, MonadFix, MonadIO, MonadPlus, MonadTrans)
+  deriving (AlgebraTrans, Alternative, Applicative, Functor, Monad, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Algebra sig m, Weaves (Either String) sig) => Fail.MonadFail (FailC m) where
+instance (Monad m, Algebra' (ThrowC String m)) => Carrier m FailC where
+  type Eff FailC = Fail
+  eff (Throw e) = FailC (throwError e)
+  {-# INLINE eff #-}
+
+instance (Monad m, Algebra' (FailC m)) => Fail.MonadFail (FailC m) where
   fail = send . Fail
   {-# INLINE fail #-}
-
-instance (Algebra sig m, Weaves (Either String) sig) => Algebra (Fail :+: sig) (FailC m) where
-  -- NB: 'send' (& thus 'handleCoercible') can’t send sums, so we decompose the sum manually.
-  alg (L op) = FailC (handleCoercible op)
-  alg (R op) = FailC (handleCoercible op)
-  {-# INLINE alg #-}

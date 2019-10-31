@@ -24,6 +24,7 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
@@ -38,6 +39,7 @@ import Control.Carrier.Lift
 import Control.Carrier.Reader
 import Control.Carrier.Writer.Strict
 import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Identity
 import Data.Function          ((&))
 import Data.Kind              (Type)
 import GHC.Generics           (Generic1)
@@ -65,7 +67,7 @@ renderLogMessage = \case
   Info  message -> "[info] "  ++ message
 
 -- The application: it logs two messages, then quits.
-application :: Has (Log Message) sig m
+application :: Has' (Log Message) m
   => m ()
 application = do
   log (Debug "debug message")
@@ -111,7 +113,7 @@ data Log (a :: Type) (m :: Type -> Type) (k :: Type)
   deriving anyclass (Weaves ctx)
 
 -- Log an 'a'.
-log :: Has (Log a) sig m
+log :: Has' (Log a) m
   => a
   -> m ()
 log x =
@@ -124,62 +126,56 @@ log x =
 
 -- Carrier one: log strings to stdout.
 newtype LogStdoutC m a
-  = LogStdoutC (m a)
-  deriving newtype (Applicative, Functor, Monad, MonadIO)
+  = LogStdoutC (IdentityT m a)
+  deriving newtype (AlgebraTrans, Applicative, Functor, Monad, MonadIO)
 
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects (and also
      -- perform IO)...
-     ( Algebra sig m
+     ( Algebra' m
      , MonadIO m
      )
      -- ... the 'LogStdoutC m' monad can interpret 'Log String :+: sig' effects
-  => Algebra (Log String :+: sig) (LogStdoutC m) where
+  => Carrier m LogStdoutC where
+  type Eff LogStdoutC = Log String
 
-  alg :: (Log String :+: sig) (LogStdoutC m) a -> LogStdoutC m a
-  alg = \case
-    L (Log message k) ->
-      LogStdoutC $ do
-        liftIO (putStrLn message)
-        runLogStdout k
+  eff :: Log String (LogStdoutC m) a -> LogStdoutC m a
+  eff (Log message k) =
+    LogStdoutC $ IdentityT $ do
+      liftIO (putStrLn message)
+      runLogStdout k
 
-    R other ->
-      LogStdoutC (handleCoercible other)
 
 -- The 'LogStdoutC' runner.
 runLogStdout ::
      LogStdoutC m a
   -> m a
 runLogStdout (LogStdoutC m) =
-  m
+  runIdentityT m
 
 
 -- Carrier two: reinterpret a program that logs 's's into one that logs 't's
 -- using a function (provided at runtime) from 's' to 't'.
 newtype ReinterpretLogC s t m a
   = ReinterpretLogC { unReinterpretLogC :: ReaderC (s -> t) m a }
-  deriving newtype (Applicative, Functor, Monad, MonadIO)
+  deriving newtype (AlgebraTrans, Applicative, Functor, Monad, MonadIO)
 
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects, one of which
      -- is 'Log t'...
-     Has (Log t) sig m
+     Has' (Log t) m
      -- ... the 'ReinterpretLogC s t m' monad can interpret 'Log s :+: sig'
      -- effects
-  => Algebra (Log s :+: sig) (ReinterpretLogC s t m) where
+  => Carrier m (ReinterpretLogC s t) where
+  type Eff (ReinterpretLogC s t) = Log s
 
-  alg ::
-       (Log s :+: sig) (ReinterpretLogC s t m) a
-    -> ReinterpretLogC s t m a
-  alg = \case
-    L (Log s k) ->
-      ReinterpretLogC $ do
-        f <- ask @(s -> t)
-        log (f s)
-        unReinterpretLogC k
+  eff :: Log s (ReinterpretLogC s t m) a -> ReinterpretLogC s t m a
+  eff (Log s k) =
+    ReinterpretLogC $ do
+      f <- ask @(s -> t)
+      log (f s)
+      unReinterpretLogC k
 
-    R other ->
-      ReinterpretLogC (handleCoercible other)
 
 -- The 'ReinterpretLogC' runner.
 reinterpretLog ::
@@ -195,28 +191,24 @@ reinterpretLog f =
 -- example's test spec.
 newtype CollectLogMessagesC s m a
   = CollectLogMessagesC { unCollectLogMessagesC :: WriterC [s] m a }
-  deriving newtype (Applicative, Functor, Monad)
+  deriving newtype (AlgebraTrans, Applicative, Functor, Monad)
 
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects...
-     ( Algebra sig m
-     , Weaves ((,) [s]) sig
+     ( Algebra' (WriterC [s] m)
+     , Monad m
      )
      -- ...the 'CollectLogMessagesC s m' monad can interpret 'Log s :+: sig'
      -- effects
-  => Algebra (Log s :+: sig) (CollectLogMessagesC s m) where
+  => Carrier m (CollectLogMessagesC s) where
+  type Eff (CollectLogMessagesC s) = Log s
 
-  alg ::
-       (Log s :+: sig) (CollectLogMessagesC s m) a
-    -> CollectLogMessagesC s m a
-  alg = \case
-    L (Log s k) ->
-      CollectLogMessagesC $ do
-        tell [s]
-        unCollectLogMessagesC k
+  eff :: Log s (CollectLogMessagesC s m) a -> CollectLogMessagesC s m a
+  eff (Log s k) =
+    CollectLogMessagesC $ do
+      tell [s]
+      unCollectLogMessagesC k
 
-    R other ->
-      CollectLogMessagesC (handleCoercible other)
 
 -- The 'CollectLogMessagesC' runner.
 collectLogMessages ::

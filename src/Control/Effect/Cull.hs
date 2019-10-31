@@ -14,8 +14,8 @@ module Control.Effect.Cull
   Cull(..)
 , cull
   -- * Re-exports
-, Algebra
-, Has
+, Algebra'
+, Has'
 , run
 ) where
 
@@ -40,5 +40,5 @@ instance Functor ctx => Weaves ctx Cull where
 -- @
 --
 -- @since 0.1.2.0
-cull :: Has Cull sig m => m a -> m a
+cull :: Has' Cull m => m a -> m a
 cull m = send (Cull m pure)

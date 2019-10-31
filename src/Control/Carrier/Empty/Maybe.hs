@@ -39,7 +39,7 @@ runEmpty (EmptyC m) = runMaybeT m
 
 -- | @since 1.0.0.0
 newtype EmptyC m a = EmptyC (MaybeT m a)
-  deriving (Applicative, Functor, Monad, MonadFix, MonadIO, MonadTrans)
+  deriving (AlgebraTrans, Applicative, Carrier n, Functor, Monad, MonadFix, MonadIO, MonadTrans)
 
 -- | 'EmptyC' passes 'Fail.MonadFail' operations along to the underlying monad @m@, rather than interpreting it as a synonym for 'empty' à la 'MaybeT'.
 instance Fail.MonadFail m => Fail.MonadFail (EmptyC m) where
