@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {- | This effect provides source to an infinite source of 'Int' values, suitable for generating "fresh" values to uniquely identify data without needing to invoke random numbers or impure IO.
 
@@ -32,6 +33,6 @@ data Fresh (m :: Type -> Type) k where
 -- @
 --
 -- @since 0.1.0.0
-fresh :: Has Fresh sig m => m Int
+fresh :: Has Fresh m => m Int
 fresh = send Fresh
 {-# INLINE fresh #-}

@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -96,7 +97,8 @@ instance MonadTrans ChooseC where
   lift m = ChooseC (\ _ leaf -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (Choose :+: sig) (ChooseC m) where
+instance ThreadAlgebra (ChooseC Identity) ctx m => Algebra ctx (ChooseC m) where
+  type Sig (ChooseC m) = Choose :+: Sig m
   alg hdl sig ctx = ChooseC $ \ fork leaf -> case sig of
     L Choose -> leaf (True <$ ctx) `fork` leaf (False <$ ctx)
     R other  -> thread (dst ~<~ hdl) other (pure ctx) >>= run . runChoose (coerce fork) (coerce leaf)

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {- | An effect providing access to an immutable (but locally-modifiable) context value.
 
 This effect is similar to the traditional @MonadReader@ typeclass, though it allows the presence of multiple @Reader t@ effects.
@@ -35,7 +36,7 @@ import Control.Effect.Reader.Internal (Reader(..))
 -- @
 --
 -- @since 0.1.0.0
-ask :: Has (Reader r) sig m => m r
+ask :: Has (Reader r) m => m r
 ask = send Ask
 {-# INLINE ask #-}
 
@@ -46,7 +47,7 @@ ask = send Ask
 -- @
 --
 -- @since 0.1.0.0
-asks :: Has (Reader r) sig m => (r -> a) -> m a
+asks :: Has (Reader r) m => (r -> a) -> m a
 asks = (`fmap` ask)
 {-# INLINE asks #-}
 
@@ -57,6 +58,6 @@ asks = (`fmap` ask)
 -- @
 --
 -- @since 0.1.0.0
-local :: Has (Reader r) sig m => (r -> r) -> m a -> m a
+local :: Has (Reader r) m => (r -> r) -> m a -> m a
 local f m = send (Local f m)
 {-# INLINE local #-}

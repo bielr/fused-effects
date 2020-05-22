@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {- | An effect modelling nondeterminism without failure (one or more successful results).
 
@@ -51,7 +52,7 @@ import qualified Data.Semigroup as S
 -- @
 --
 -- @since 1.0.0.0
-(<|>) :: Has Choose sig m => m a -> m a -> m a
+(<|>) :: Has Choose m => m a -> m a -> m a
 a <|> b = send Choose >>= bool b a
 {-# INLINE (<|>) #-}
 
@@ -67,7 +68,7 @@ infixl 3 <|>
 -- @
 --
 -- @since 1.0.0.0
-optional :: Has Choose sig m => m a -> m (Maybe a)
+optional :: Has Choose m => m a -> m (Maybe a)
 optional a = Just <$> a <|> pure Nothing
 {-# INLINE optional #-}
 
@@ -78,7 +79,7 @@ optional a = Just <$> a <|> pure Nothing
 -- @
 --
 -- @since 1.0.0.0
-many :: Has Choose sig m => m a -> m [a]
+many :: Has Choose m => m a -> m [a]
 many a = go where go = (:) <$> a <*> go <|> pure []
 {-# INLINE many #-}
 
@@ -89,7 +90,7 @@ many a = go where go = (:) <$> a <*> go <|> pure []
 -- @
 --
 -- @since 1.0.0.0
-some :: Has Choose sig m => m a -> m [a]
+some :: Has Choose m => m a -> m [a]
 some a = (:) <$> a <*> many a
 {-# INLINE some #-}
 
@@ -100,7 +101,7 @@ some a = (:) <$> a <*> many a
 -- @
 --
 -- @since 1.0.0.0
-some1 :: Has Choose sig m => m a -> m (NonEmpty a)
+some1 :: Has Choose m => m a -> m (NonEmpty a)
 some1 a = (:|) <$> a <*> many a
 {-# INLINE some1 #-}
 
@@ -108,11 +109,11 @@ some1 a = (:|) <$> a <*> many a
 -- | @since 1.0.0.0
 newtype Choosing m a = Choosing { getChoosing :: m a }
 
-instance Has Choose sig m => S.Semigroup (Choosing m a) where
+instance Has Choose m => S.Semigroup (Choosing m a) where
   Choosing m1 <> Choosing m2 = Choosing (m1 <|> m2)
   {-# INLINE (<>) #-}
 
-instance (Has Choose sig m, Has Empty sig m) => Monoid (Choosing m a) where
+instance (Has Choose m, Has Empty m) => Monoid (Choosing m a) where
   mempty = Choosing empty
   {-# INLINE mempty #-}
 

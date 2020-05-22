@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {- | An effect modelling nondeterminism without choice (success or failure).
 
 This can be seen as similar to 'Control.Effect.Fail.Fail', but without an error message. The 'Control.Effect.NonDet.NonDet' effect is the composition of 'Empty' and 'Control.Effect.Choose.Choose'.
@@ -35,14 +36,14 @@ import Control.Effect.Empty.Internal (Empty(..))
 -- @
 --
 -- @since 1.0.0.0
-empty :: Has Empty sig m => m a
+empty :: Has Empty m => m a
 empty = send Empty
 {-# INLINE empty #-}
 
 -- | Conditional failure, returning only if the condition is 'True'.
 --
 -- @since 1.0.0.0
-guard :: Has Empty sig m => Bool -> m ()
+guard :: Has Empty m => Bool -> m ()
 guard True  = pure ()
 guard False = empty
 {-# INLINE guard #-}

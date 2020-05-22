@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
 {- | Provides a mechanism to kick off the evaluation of an effect stack that takes place in a monadic context.
@@ -33,16 +34,16 @@ import Control.Effect.Lift.Internal (Lift(..))
 -- similar to @lift@ from the @MonadTrans@ typeclass.
 --
 -- @since 1.0.0.0
-sendM :: (Has (Lift n) sig m, Functor n) => n a -> m a
+sendM :: (Has (Lift n) m, Functor n) => n a -> m a
 sendM m = liftWith (\ _ ctx -> (<$ ctx) <$> m)
 {-# INLINE sendM #-}
 
 -- | A type-restricted variant of 'sendM' for 'IO' actions.
 --
--- This is particularly useful when you have a @'Has' ('Lift' 'IO') sig m@ constraint for the use of 'liftWith', and want to run an action abstracted over 'Control.Monad.IO.Class.MonadIO'. 'IO' has a 'Control.Monad.IO.Class.MonadIO' instance, and 'sendIO'’s type restricts the action’s type to 'IO' without further type annotations.
+-- This is particularly useful when you have a @'Has' ('Lift' 'IO') m@ constraint for the use of 'liftWith', and want to run an action abstracted over 'Control.Monad.IO.Class.MonadIO'. 'IO' has a 'Control.Monad.IO.Class.MonadIO' instance, and 'sendIO'’s type restricts the action’s type to 'IO' without further type annotations.
 --
 -- @since 1.0.2.0
-sendIO :: Has (Lift IO) sig m => IO a -> m a
+sendIO :: Has (Lift IO) m => IO a -> m a
 sendIO = sendM
 {-# INLINE sendIO #-}
 
@@ -61,7 +62,7 @@ sendIO = sendM
 --
 -- @since 1.0.0.0
 liftWith
-  :: Has (Lift n) sig m
+  :: Has (Lift n) m
   => (forall ctx . Functor ctx => Handler ctx m n -> ctx () -> n (ctx a))
   -> m a
 liftWith with = send (LiftWith with)

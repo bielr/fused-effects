@@ -6,10 +6,13 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 
 {- | The 'Algebra' class is the mechanism with which effects are interpreted.
 
@@ -19,6 +22,8 @@ An instance of the 'Algebra' class defines an interpretation of an effect signat
 -}
 module Control.Algebra
 ( Algebra(..)
+, ThreadAlgebra
+, Algebra1
 , thread
 , run
 , Has
@@ -59,13 +64,16 @@ import qualified Control.Monad.Trans.Writer.Lazy as Writer.Lazy
 import qualified Control.Monad.Trans.Writer.Strict as Writer.Strict
 import           Data.Functor.Compose
 import           Data.Functor.Identity
+import           Data.Kind (Type)
 import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.Monoid
 
 -- | The class of carriers (results) for algebras (effect handlers) over signatures (effects), whose actions are given by the 'alg' method.
 --
 -- @since 1.0.0.0
-class Monad m => Algebra sig m | m -> sig where
+class (Functor ctx, Algebra Identity m, Monad m) => Algebra ctx m where
+  type Sig m :: (Type -> Type) -> Type -> Type
+
   -- | Interpret an effect, running any nested actions using a 'Handler' starting from an initial state in @ctx@.
   --
   -- Instances receive a signature of effects containing actions in @n@ which can be lowered to @m@ using the passed 'Handler' and initial context. Continuations in @n@ can be handled after mapping into contexts returned from previous actions.
@@ -85,22 +93,24 @@ class Monad m => Algebra sig m | m -> sig where
   --
   -- Instances for monad transformers will most likely handle a signature containing multiple effects, with the tail of the signature handled by whatever monad the transformer wraps. In these cases, the tail of the signature can be delegated most conveniently using 'thread'; see the 'Algebra' instances for @transformers@ types such as 'Reader.ReaderT' and 'Except.ExceptT' for details.
   alg
-    :: Functor ctx
-    => Handler ctx n m -- ^ A 'Handler' lowering computations inside the effect into the carrier type @m@.
-    -> sig n a         -- ^ The effect signature to be interpreted.
+    :: Handler ctx n m -- ^ A 'Handler' lowering computations inside the effect into the carrier type @m@.
+    -> Sig m n a       -- ^ The effect signature to be interpreted.
     -> ctx ()          -- ^ The initial state.
     -> m (ctx a)       -- ^ The interpretation of the effect in @m@.
+
+
+type ThreadAlgebra ctx1 ctx2 m = (Functor ctx2, Algebra (Compose ctx1 Identity) m, Algebra (Compose ctx1 ctx2) m)
+
+class (Monad m, forall ctx. c ctx => Algebra ctx m) => Algebra1 c m
+instance (Monad m, forall ctx. c ctx => Algebra ctx m) => Algebra1 c m
 
 -- | Thread a composed handler and input state through the algebra for some underlying signature.
 --
 -- @since 1.1.0.0
 thread
-  :: ( Functor ctx1
-     , Functor ctx2
-     , Algebra sig m
-     )
+  :: ThreadAlgebra ctx1 ctx2 m
   => Handler (Compose ctx1 ctx2) n m
-  -> sig n a
+  -> Sig m n a
   -> ctx1 (ctx2 ())
   -> m (ctx1 (ctx2 a))
 thread hdl sig = fmap getCompose . alg hdl sig . Compose
@@ -124,53 +134,61 @@ run = runIdentity
 -- 2. It defeats @ghc@’s warnings for redundant constraints, and thus can lead to a proliferation of redundant constraints as code is changed.
 --
 -- @since 1.0.0.0
-type Has eff sig m = (Members eff sig, Algebra sig m)
+type Has eff m = (Members eff (Sig m), Algebra Identity m)
 
 -- | Construct a request for an effect to be interpreted by some handler later on.
 --
 -- @since 0.1.0.0
-send :: (Member eff sig, Algebra sig m) => eff m a -> m a
+send :: (Member eff (Sig m), Algebra Identity m) => eff m a -> m a
 send sig = runIdentity <$> alg (fmap Identity . runIdentity) (inj sig) (Identity ())
 {-# INLINE send #-}
 
 
 -- base
 
-instance Algebra (Lift IO) IO where
+instance Functor ctx => Algebra ctx IO where
+  type Sig IO = Lift IO
   alg hdl (LiftWith with) = with hdl
   {-# INLINE alg #-}
 
-instance Algebra (Lift Identity) Identity where
+instance Functor ctx => Algebra ctx Identity where
+  type Sig Identity = Lift Identity
   alg hdl (LiftWith with) = with hdl
   {-# INLINE alg #-}
 
-instance Algebra Choose NonEmpty where
+instance Functor ctx => Algebra ctx NonEmpty where
+  type Sig NonEmpty = Choose
   alg _ Choose ctx = (True <$ ctx) :| [ False <$ ctx ]
   {-# INLINE alg #-}
 
-instance Algebra Empty Maybe where
+instance Functor ctx => Algebra ctx Maybe where
+  type Sig Maybe = Empty
   alg _ Empty _ = Nothing
   {-# INLINE alg #-}
 
-instance Algebra (Error e) (Either e) where
+instance Functor ctx => Algebra ctx (Either e) where
+  type Sig (Either e) = Error e
   alg hdl sig ctx = case sig of
     L (Throw e)   -> Left e
     R (Catch m h) -> either (hdl . (<$ ctx) . h) pure (hdl (m <$ ctx))
   {-# INLINE alg #-}
 
-instance Algebra (Reader r) ((->) r) where
+instance Functor ctx => Algebra ctx ((->) r) where
+  type Sig ((->) r) = Reader r
   alg hdl sig ctx = case sig of
     Ask       -> (<$ ctx)
     Local f m -> hdl (m <$ ctx) . f
   {-# INLINE alg #-}
 
-instance Algebra NonDet [] where
+instance Functor ctx => Algebra ctx [] where
+  type Sig [] = NonDet
   alg _ sig ctx = case sig of
     L Empty  -> []
     R Choose -> [ True <$ ctx, False <$ ctx ]
   {-# INLINE alg #-}
 
-instance Monoid w => Algebra (Writer w) ((,) w) where
+instance (Functor ctx, Monoid w) => Algebra ctx ((,) w) where
+  type Sig ((,) w) = Writer w
   alg hdl sig ctx = case sig of
     Tell w     -> (w, ctx)
     Listen m   -> let (w, a) = hdl (m <$ ctx) in (w, (,) w <$> a)
@@ -180,7 +198,8 @@ instance Monoid w => Algebra (Writer w) ((,) w) where
 
 -- transformers
 
-instance Algebra sig m => Algebra (Error e :+: sig) (Except.ExceptT e m) where
+instance ThreadAlgebra (Either e) ctx m => Algebra ctx (Except.ExceptT e m) where
+  type Sig (Except.ExceptT e m) = Error e :+: Sig m
   alg hdl sig ctx = case sig of
     L (L (Throw e))   -> Except.throwE e
     L (R (Catch m h)) -> Except.catchE (hdl (m <$ ctx)) (hdl . (<$ ctx) . h)
@@ -188,7 +207,7 @@ instance Algebra sig m => Algebra (Error e :+: sig) (Except.ExceptT e m) where
   {-# INLINE alg #-}
 
 
-deriving instance Algebra sig m => Algebra sig (Identity.IdentityT m)
+deriving instance Algebra ctx m => Algebra ctx (Identity.IdentityT m)
 
 #if MIN_VERSION_base(4,12,0)
 -- | This instance permits effectful actions to be lifted into the 'Ap' monad
@@ -202,7 +221,7 @@ deriving instance Algebra sig m => Algebra sig (Identity.IdentityT m)
 -- > getAp (act1 <> act2 <> act3)
 --
 -- @since 1.0.1.0
-deriving instance Algebra sig m => Algebra sig (Ap m)
+deriving instance Algebra ctx m => Algebra ctx (Ap m)
 #endif
 
 -- | This instance permits effectful actions to be lifted into the 'Alt' monad,
@@ -215,17 +234,19 @@ deriving instance Algebra sig m => Algebra sig (Ap m)
 -- > getAlt (mconcat [a, b, c, d])
 --
 -- @since 1.0.1.0
-deriving instance Algebra sig m => Algebra sig (Alt m)
+deriving instance Algebra ctx m => Algebra ctx (Alt m)
 
 
-instance Algebra sig m => Algebra (Empty :+: sig) (Maybe.MaybeT m) where
+instance ThreadAlgebra Maybe ctx m => Algebra ctx (Maybe.MaybeT m) where
+  type Sig (Maybe.MaybeT m) = Empty :+: Sig m
   alg hdl sig ctx = case sig of
     L Empty -> Maybe.MaybeT (pure Nothing)
     R other -> Maybe.MaybeT $ thread (maybe (pure Nothing) Maybe.runMaybeT ~<~ hdl) other (Just ctx)
   {-# INLINE alg #-}
 
 
-instance Algebra sig m => Algebra (Reader r :+: sig) (Reader.ReaderT r m) where
+instance Algebra ctx m => Algebra ctx (Reader.ReaderT r m) where
+  type Sig (Reader.ReaderT r m) = Reader r :+: Sig m
   alg hdl sig ctx = case sig of
     L Ask         -> Reader.asks (<$ ctx)
     L (Local f m) -> Reader.local f (hdl (m <$ ctx))
@@ -248,7 +269,8 @@ swapAndLift p = (,) (snd p) <$> fst p
 {-# INLINE swapAndLift #-}
 
 #if MIN_VERSION_transformers(0,5,6)
-instance (Algebra sig m, Monoid w) => Algebra (Reader r :+: Writer w :+: State s :+: sig) (RWS.CPS.RWST r w s m) where
+instance (ThreadAlgebra (RWSTF w s) ctx m, Monoid w) => Algebra ctx (RWS.CPS.RWST r w s m) where
+  type Sig (RWS.CPS.RWST r w s m) = Reader r :+: Writer w :+: State s :+: Sig m
   alg hdl sig ctx = case sig of
     L Ask              -> RWS.CPS.asks (<$ ctx)
     L (Local f m)      -> RWS.CPS.local f (hdl (m <$ ctx))
@@ -261,7 +283,8 @@ instance (Algebra sig m, Monoid w) => Algebra (Reader r :+: Writer w :+: State s
   {-# INLINE alg #-}
 #endif
 
-instance (Algebra sig m, Monoid w) => Algebra (Reader r :+: Writer w :+: State s :+: sig) (RWS.Lazy.RWST r w s m) where
+instance (ThreadAlgebra (RWSTF w s) ctx m, Monoid w) => Algebra ctx (RWS.Lazy.RWST r w s m) where
+  type Sig (RWS.Lazy.RWST r w s m) = Reader r :+: Writer w :+: State s :+: Sig m
   alg hdl sig ctx = case sig of
     L Ask              -> RWS.Lazy.asks (<$ ctx)
     L (Local f m)      -> RWS.Lazy.local f (hdl (m <$ ctx))
@@ -273,7 +296,8 @@ instance (Algebra sig m, Monoid w) => Algebra (Reader r :+: Writer w :+: State s
     R (R (R other))    -> RWS.Lazy.RWST $ \ r s -> unRWSTF <$> thread ((\ (RWSTF (x, s, w)) -> toRWSTF w <$> RWS.Lazy.runRWST x r s) ~<~ hdl) other (RWSTF (ctx, s, mempty))
   {-# INLINE alg #-}
 
-instance (Algebra sig m, Monoid w) => Algebra (Reader r :+: Writer w :+: State s :+: sig) (RWS.Strict.RWST r w s m) where
+instance (ThreadAlgebra (RWSTF w s) ctx m, Monoid w) => Algebra ctx (RWS.Strict.RWST r w s m) where
+  type Sig (RWS.Strict.RWST r w s m) = Reader r :+: Writer w :+: State s :+: Sig m
   alg hdl sig ctx = case sig of
     L Ask              -> RWS.Strict.asks (<$ ctx)
     L (Local f m)      -> RWS.Strict.local f (hdl (m <$ ctx))
@@ -286,14 +310,16 @@ instance (Algebra sig m, Monoid w) => Algebra (Reader r :+: Writer w :+: State s
   {-# INLINE alg #-}
 
 
-instance Algebra sig m => Algebra (State s :+: sig) (State.Lazy.StateT s m) where
+instance ThreadAlgebra (Swap s) ctx m => Algebra ctx (State.Lazy.StateT s m) where
+  type Sig (State.Lazy.StateT s m) = State s :+: Sig m
   alg hdl sig ctx = case sig of
     L Get     -> State.Lazy.gets (<$ ctx)
     L (Put s) -> ctx <$ State.Lazy.put s
     R other   -> State.Lazy.StateT $ \ s -> getSwap <$> thread (fmap Swap . uncurry State.Lazy.runStateT . getSwap ~<~ hdl) other (Swap (ctx, s))
   {-# INLINE alg #-}
 
-instance Algebra sig m => Algebra (State s :+: sig) (State.Strict.StateT s m) where
+instance ThreadAlgebra (Swap s) ctx m => Algebra ctx (State.Strict.StateT s m) where
+  type Sig (State.Strict.StateT s m) = State s :+: Sig m
   alg hdl sig ctx = case sig of
     L Get     -> State.Strict.gets (<$ ctx)
     L (Put s) -> ctx <$ State.Strict.put s
@@ -302,7 +328,8 @@ instance Algebra sig m => Algebra (State s :+: sig) (State.Strict.StateT s m) wh
 
 
 #if MIN_VERSION_transformers(0,5,6)
-instance (Algebra sig m, Monoid w) => Algebra (Writer w :+: sig) (Writer.CPS.WriterT w m) where
+instance (ThreadAlgebra (Swap w) ctx m, Monoid w) => Algebra ctx (Writer.CPS.WriterT w m) where
+  type Sig (Writer.CPS.WriterT w m) = Writer w :+: Sig m
   alg hdl sig ctx = case sig of
     L (Tell w)     -> ctx <$ Writer.CPS.tell w
     L (Listen m)   -> swapAndLift <$> Writer.CPS.listen (hdl (m <$ ctx))
@@ -311,7 +338,8 @@ instance (Algebra sig m, Monoid w) => Algebra (Writer w :+: sig) (Writer.CPS.Wri
   {-# INLINE alg #-}
 #endif
 
-instance (Algebra sig m, Monoid w) => Algebra (Writer w :+: sig) (Writer.Lazy.WriterT w m) where
+instance (ThreadAlgebra (Swap w) ctx m, Monoid w) => Algebra ctx (Writer.Lazy.WriterT w m) where
+  type Sig (Writer.Lazy.WriterT w m) = Writer w :+: Sig m
   alg hdl sig ctx = case sig of
     L (Tell w)     -> ctx <$ Writer.Lazy.tell w
     L (Listen m)   -> swapAndLift <$> Writer.Lazy.listen (hdl (m <$ ctx))
@@ -319,7 +347,8 @@ instance (Algebra sig m, Monoid w) => Algebra (Writer w :+: sig) (Writer.Lazy.Wr
     R other        -> Writer.Lazy.WriterT $ getSwap <$> thread ((\ (Swap (x, s)) -> Swap . fmap (mappend s) <$> Writer.Lazy.runWriterT x) ~<~ hdl) other (Swap (ctx, mempty))
   {-# INLINE alg #-}
 
-instance (Algebra sig m, Monoid w) => Algebra (Writer w :+: sig) (Writer.Strict.WriterT w m) where
+instance (ThreadAlgebra (Swap w) ctx m, Monoid w) => Algebra ctx (Writer.Strict.WriterT w m) where
+  type Sig (Writer.Strict.WriterT w m) = Writer w :+: Sig m
   alg hdl sig ctx = case sig of
     L (Tell w)     -> ctx <$ Writer.Strict.tell w
     L (Listen m)   -> swapAndLift <$> Writer.Strict.listen (hdl (m <$ ctx))

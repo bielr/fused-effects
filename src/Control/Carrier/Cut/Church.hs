@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -110,7 +111,8 @@ instance MonadTrans CutC where
   lift m = CutC (\ cons nil _ -> m >>= flip cons nil)
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (Cut :+: NonDet :+: sig) (CutC m) where
+instance ThreadAlgebra (CutC Identity) ctx m => Algebra ctx (CutC m) where
+  type Sig (CutC m) = Cut :+: NonDet :+: Sig m
   alg hdl sig ctx = CutC $ \ cons nil fail -> case sig of
     L Cutfail        -> fail
     L (Call m)       -> runCut cons nil nil (hdl (m <$ ctx))

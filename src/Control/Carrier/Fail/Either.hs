@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | A carrier for a 'Control.Effect.Fail.Fail' effect, returning the result as an 'Either' 'String'. Failed computations will return a 'Left' containing the 'String' value passed to 'Fail.fail'.
 --
@@ -25,6 +27,8 @@ import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 
+import Data.Functor.Identity (Identity)
+
 -- | Run a 'Control.Effect.Fail.Fail' effect, returning failure messages in 'Left' and successful computations’ results in 'Right'.
 --
 -- @
@@ -41,8 +45,10 @@ runFail (FailC m) = runThrow m
 
 -- | @since 1.0.0.0
 newtype FailC m a = FailC (ThrowC String m a)
-  deriving (Algebra (Fail :+: sig), Alternative, Applicative, Functor, Monad, MonadFix, MonadIO, MonadPlus, MonadTrans)
+  deriving (Alternative, Applicative, Functor, Monad, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance Algebra sig m => Fail.MonadFail (FailC m) where
+deriving instance (Functor ctx, Monad m, Algebra ctx (ThrowC String m)) => Algebra ctx (FailC m)
+
+instance (Monad m, Algebra Identity (FailC m)) => Fail.MonadFail (FailC m) where
   fail = send . Fail
   {-# INLINE fail #-}

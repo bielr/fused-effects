@@ -14,20 +14,20 @@ import qualified Control.Effect.State.Labelled as L
 import           Test.Tasty
 import           Test.Tasty.HUnit
 
-sample :: ( HasLabelled "fore" (Reader Int) sig m
-          , HasLabelled "aft" (Reader Int) sig m
+sample :: ( HasLabelled "fore" (Reader Int) m
+          , HasLabelled "aft" (Reader Int) m
           )
        => m Int
 sample = liftA2 (+) (runUnderLabel @"fore" ask) (runUnderLabel @"aft" ask)
 
-withHelpers :: ( HasLabelled "fore" (Reader Int) sig m
-               , HasLabelled "aft" (Reader Int) sig m
+withHelpers :: ( HasLabelled "fore" (Reader Int) m
+               , HasLabelled "aft" (Reader Int) m
                )
             => m Int
 withHelpers = liftA2 (+) (L.ask @"fore") (L.ask @"aft")
 
-numerically :: ( HasLabelled 1 (Reader Int) sig m
-               , HasLabelled 2 (Reader Int) sig m
+numerically :: ( HasLabelled 1 (Reader Int) m
+               , HasLabelled 2 (Reader Int) m
                )
             => m Int
 numerically = liftA2 (+) (L.ask @1) (L.ask @2)
@@ -39,20 +39,20 @@ readerExamples = testGroup "Reader"
   , testCase "Nat labels"              (run (runReader (5 :: Int) (runLabelled @1 (runReader (10 :: Int) (runLabelled @2 numerically)))) @=? 15)
   ]
 
-sampleS :: ( HasLabelled "fore" (State Int) sig m
-          , HasLabelled "aft" (State Int) sig m
+sampleS :: ( HasLabelled "fore" (State Int) m
+          , HasLabelled "aft" (State Int) m
           )
        => m Int
 sampleS = liftA2 (+) (runUnderLabel @"fore" get) (runUnderLabel @"aft" get)
 
-helpersS :: ( HasLabelled "fore" (State Int) sig m
-               , HasLabelled "aft" (State Int) sig m
+helpersS :: ( HasLabelled "fore" (State Int) m
+               , HasLabelled "aft" (State Int) m
                )
             => m Int
 helpersS = liftA2 (+) (L.get @"fore") (L.get @"aft")
 
-boolean :: ( HasLabelled 'True (State Int) sig m
-           , HasLabelled 'False (State Int) sig m
+boolean :: ( HasLabelled 'True (State Int) m
+           , HasLabelled 'False (State Int) m
            )
             => m Int
 boolean = liftA2 (+) (L.get @'True) (L.get @'False)

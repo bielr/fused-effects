@@ -1,5 +1,7 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | A carrier for 'Lift' allowing monadic actions to be lifted from an outer context into an inner one with 'sendM', and for an inner context to run actions in an outer one with 'liftWith'.
 --
@@ -36,6 +38,7 @@ instance MonadTrans LiftC where
   lift = LiftC
   {-# INLINE lift #-}
 
-instance Monad m => Algebra (Lift m) (LiftC m) where
+instance (Functor ctx, Monad m) => Algebra ctx (LiftC m) where
+  type Sig (LiftC m) = Lift m
   alg hdl (LiftWith with) = LiftC . with (runM . hdl)
   {-# INLINE alg #-}

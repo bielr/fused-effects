@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Lift
 ( tests
 ) where
@@ -19,5 +20,5 @@ tests = testGroup "Lift"
   ] where
   getMsg (E.AssertionFailed msg) = msg
 
-handle :: (E.Exception e, Has (Lift IO) sig m) => (e -> m a) -> m a -> m a
+handle :: (E.Exception e, Has (Lift IO) m) => (e -> m a) -> m a -> m a
 handle h m = liftWith $ \ run ctx -> E.handle (run . (<$ ctx) . h) (run (m <$ ctx))

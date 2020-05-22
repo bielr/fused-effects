@@ -61,8 +61,8 @@ tests = testGroup "State"
 
 
 gen0
-  :: forall s m a sig
-  .  (Has (State s) sig m, Arg s, Show s, Vary s)
+  :: forall s m a
+  .  (Has (State s) m, Arg s, Show s, Vary s)
   => GenTerm s
   -> GenTerm a
   -> [GenTerm (m a)]
@@ -73,7 +73,7 @@ gen0 s a =
 
 
 test
-  :: (Has (State s) sig m, Arg s, Eq a, Eq s, Show a, Show s, Vary s)
+  :: (Has (State s) m, Arg s, Eq a, Eq s, Show a, Show s, Vary s)
   => GenM m
   -> GenTerm a
   -> GenTerm s

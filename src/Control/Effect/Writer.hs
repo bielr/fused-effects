@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
 {- | An effect allowing writes to an accumulated quantity alongside a computed value. A 'Writer' @w@ effect keeps track of a monoidal datum of type @w@ and strictly appends to that monoidal value with the 'tell' effect. Writes to that value can be detected and intercepted with the 'listen' and 'censor' effects.
@@ -42,7 +43,7 @@ import Data.Bifunctor (first)
 -- @
 --
 -- @since 0.1.0.0
-tell :: Has (Writer w) sig m => w -> m ()
+tell :: Has (Writer w) m => w -> m ()
 tell w = send (Tell w)
 {-# INLINE tell #-}
 
@@ -53,7 +54,7 @@ tell w = send (Tell w)
 -- @
 --
 -- @since 0.2.0.0
-listen :: Has (Writer w) sig m => m a -> m (w, a)
+listen :: Has (Writer w) m => m a -> m (w, a)
 listen m = send (Listen m)
 {-# INLINE listen #-}
 
@@ -64,7 +65,7 @@ listen m = send (Listen m)
 -- @
 --
 -- @since 0.2.0.0
-listens :: Has (Writer w) sig m => (w -> b) -> m a -> m (b, a)
+listens :: Has (Writer w) m => (w -> b) -> m a -> m (b, a)
 listens f = fmap (first f) . listen
 {-# INLINE listens #-}
 
@@ -75,6 +76,6 @@ listens f = fmap (first f) . listen
 -- @
 --
 -- @since 0.2.0.0
-censor :: Has (Writer w) sig m => (w -> w) -> m a -> m a
+censor :: Has (Writer w) m => (w -> w) -> m a -> m a
 censor f m = send (Censor f m)
 {-# INLINE censor #-}

@@ -8,6 +8,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- | Labelled effects, allowing flexible disambiguation and dependency of parametric effects.
@@ -53,7 +54,11 @@ runLabelled :: forall label sub m a . Labelled label sub m a -> sub m a
 runLabelled (Labelled l) = l
 {-# INLINE runLabelled #-}
 
-instance Algebra (eff :+: sig) (sub m) => Algebra (Labelled label eff :+: sig) (Labelled label sub m) where
+type family LHS sig where
+  LHS (l :+: _) = l
+
+instance (Algebra ctx (sub m), Sig (sub m) ~ (eff :+: Sig m)) => Algebra ctx (Labelled label sub m) where
+  type Sig (Labelled label sub m) = Labelled label (LHS (Sig (sub m))) :+: Sig m
   alg hdl = \case
     L eff -> Labelled . alg (runLabelled . hdl) (L (runLabelled eff))
     R sig -> Labelled . alg (runLabelled . hdl) (R sig)
@@ -100,12 +105,12 @@ instance {-# OVERLAPPABLE #-}
 -- Note that if @eff@ is a sum, it will /not/ be decomposed into multiple 'LabelledMember' constraints. While this technically is possible, it results in unsolvable constraints, as the functional dependencies in 'Labelled' prevent assocating the same label with multiple distinct effects within a signature.
 --
 -- @since 1.0.2.0
-type HasLabelled label eff sig m = (LabelledMember label eff sig, Algebra sig m)
+type HasLabelled label eff m = (LabelledMember label eff (Sig m), Algebra Identity m)
 
 -- | Construct a request for a labelled effect to be interpreted by some handler later on.
 --
 -- @since 1.0.2.0
-sendLabelled :: forall label eff sig m a . HasLabelled label eff sig m => eff m a -> m a
+sendLabelled :: forall label eff m a . HasLabelled label eff m => eff m a -> m a
 sendLabelled op = runIdentity <$> alg (fmap Identity . runIdentity) (injLabelled @label (Labelled op)) (Identity ())
 {-# INLINABLE sendLabelled #-}
 
@@ -125,7 +130,8 @@ instance MonadTrans (UnderLabel sub label) where
   lift = UnderLabel
   {-# INLINE lift #-}
 
-instance (LabelledMember label sub sig, Algebra sig m) => Algebra (sub :+: sig) (UnderLabel label sub m) where
+instance (LabelledMember label sub (Sig m), Algebra ctx m) => Algebra ctx (UnderLabel label sub m) where
+  type Sig (UnderLabel label sub m) = sub :+: Sig m
   alg hdl = \case
     L sub -> UnderLabel . alg (runUnderLabel . hdl) (injLabelled @label (Labelled sub))
     R sig -> UnderLabel . alg (runUnderLabel . hdl) sig

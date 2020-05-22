@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -59,7 +60,8 @@ evalFresh n = evalState n . runFreshC
 newtype FreshC m a = FreshC { runFreshC :: StateC Int m a }
   deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance Algebra sig m => Algebra (Fresh :+: sig) (FreshC m) where
+instance (Algebra ctx m, Algebra ctx (StateC Int m)) => Algebra ctx (FreshC m) where
+  type Sig (FreshC m) = Fresh :+: Sig m
   alg hdl sig ctx = FreshC $ case sig of
     L Fresh -> state $ \ i -> (i + 1, i <$ ctx)
     R other -> alg (runFreshC . hdl) (R other) ctx

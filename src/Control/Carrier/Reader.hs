@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -92,7 +93,8 @@ instance MonadTrans (ReaderC r) where
   lift = ReaderC . const
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (Reader r :+: sig) (ReaderC r m) where
+instance Algebra ctx m => Algebra ctx (ReaderC r m) where
+  type Sig (ReaderC r m) = Reader r :+: Sig m
   alg hdl sig ctx = ReaderC $ \ r -> case sig of
     L Ask         -> pure (r <$ ctx)
     L (Local f m) -> runReader (f r) (hdl (m <$ ctx))

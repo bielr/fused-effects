@@ -1,10 +1,12 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Parser
@@ -117,16 +119,16 @@ data Symbol (m :: Type -> Type) k where
   Satisfy :: (Char -> Bool) -> Symbol m Char
 
 
-satisfy :: Has Symbol sig m => (Char -> Bool) -> m Char
+satisfy :: Has Symbol m => (Char -> Bool) -> m Char
 satisfy p = send (Satisfy p)
 
-char :: Has Symbol sig m => Char -> m Char
+char :: Has Symbol m => Char -> m Char
 char = satisfy . (==)
 
-digit :: Has Symbol sig m => m Char
+digit :: Has Symbol m => m Char
 digit = satisfy isDigit
 
-parens :: Has Symbol sig m => m a -> m a
+parens :: Has Symbol m => m a -> m a
 parens m = char '(' *> m <* char ')'
 
 
@@ -138,7 +140,8 @@ parse input = (>>= exhaustive) . runState input . runParseC
 newtype ParseC m a = ParseC { runParseC :: StateC String m a }
   deriving (Alternative, Applicative, Functor, Monad)
 
-instance (Alternative m, Algebra sig m) => Algebra (Symbol :+: sig) (ParseC m) where
+instance (Functor ctx, Monad m, Alternative m, Algebra ctx (StateC String m)) => Algebra ctx (ParseC m) where
+  type Sig (ParseC m) = Symbol :+: Sig m
   alg hdl sig ctx = case sig of
     L (Satisfy p) -> do
       input <- ParseC get
@@ -149,19 +152,19 @@ instance (Alternative m, Algebra sig m) => Algebra (Symbol :+: sig) (ParseC m) w
   {-# INLINE alg #-}
 
 
-expr :: (Alternative m, Has Cut sig m, Has Symbol sig m) => m Int
+expr :: (Alternative m, Has Cut m, Has Symbol m) => m Int
 expr = do
   i <- term
   call ((i +) <$ char '+' <* cut <*> expr
     <|> pure i)
 
-term :: (Alternative m, Has Cut sig m, Has Symbol sig m) => m Int
+term :: (Alternative m, Has Cut m, Has Symbol m) => m Int
 term = do
   i <- factor
   call ((i *) <$ char '*' <* cut <*> term
     <|> pure i)
 
-factor :: (Alternative m, Has Cut sig m, Has Symbol sig m) => m Int
+factor :: (Alternative m, Has Cut m, Has Symbol m) => m Int
 factor
   =   read <$> some digit
   <|> parens expr

@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -46,17 +48,18 @@ data Teletype (m :: Type -> Type) k where
   Write :: String -> Teletype m ()
 
 
-read :: Has Teletype sig m => m String
+read :: Has Teletype m => m String
 read = send Read
 
-write :: Has Teletype sig m => String -> m ()
+write :: Has Teletype m => String -> m ()
 write s = send (Write s)
 
 
 newtype TeletypeIOC m a = TeletypeIOC { runTeletypeIO :: m a }
   deriving (Applicative, Functor, Monad, MonadIO)
 
-instance (MonadIO m, Algebra sig m) => Algebra (Teletype :+: sig) (TeletypeIOC m) where
+instance (MonadIO m, Algebra ctx m) => Algebra ctx (TeletypeIOC m) where
+  type Sig (TeletypeIOC m) = Teletype :+: Sig m
   alg hdl sig ctx = case sig of
     L Read      -> (<$ ctx) <$> liftIO getLine
     L (Write s) -> ctx <$ liftIO (putStrLn s)
@@ -66,10 +69,13 @@ instance (MonadIO m, Algebra sig m) => Algebra (Teletype :+: sig) (TeletypeIOC m
 runTeletypeRet :: [String] -> TeletypeRetC m a -> m ([String], ([String], a))
 runTeletypeRet i = runWriter . runState i . runTeletypeRetC
 
-newtype TeletypeRetC m a = TeletypeRetC { runTeletypeRetC :: StateC [String] (WriterC [String] m) a }
+type InnerTeletypeRetC m = StateC [String] (WriterC [String] m)
+
+newtype TeletypeRetC m a = TeletypeRetC { runTeletypeRetC :: InnerTeletypeRetC m a }
   deriving (Applicative, Functor, Monad)
 
-instance Algebra sig m => Algebra (Teletype :+: sig) (TeletypeRetC m) where
+instance (Algebra ctx m, Algebra ctx (InnerTeletypeRetC m)) => Algebra ctx (TeletypeRetC m) where
+  type Sig (TeletypeRetC m) = Teletype :+: Sig m
   alg hdl sig ctx = TeletypeRetC $ case sig of
     L Read      -> do
       i <- get

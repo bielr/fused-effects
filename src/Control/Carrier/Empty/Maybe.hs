@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 {- | A carrier for an 'Empty' effect, indicating failure with a 'Nothing' value. Users that need access to an error message should use the 'Control.Effect.Fail.Fail' effect.
 
@@ -79,7 +81,10 @@ execEmpty = fmap isJust . runEmpty
 
 -- | @since 1.0.0.0
 newtype EmptyC m a = EmptyC (MaybeT m a)
-  deriving (Algebra (Empty :+: sig), Applicative, Functor, Monad, MonadFix, MonadIO, MonadTrans)
+  deriving (Applicative, Functor, Monad, MonadFix, MonadIO, MonadTrans)
+
+
+deriving instance (Functor ctx, Monad m, Algebra ctx (MaybeT m)) => Algebra ctx (EmptyC m)
 
 -- | 'EmptyC' passes 'Fail.MonadFail' operations along to the underlying monad @m@, rather than interpreting it as a synonym for 'empty' à la 'MaybeT'.
 instance Fail.MonadFail m => Fail.MonadFail (EmptyC m) where

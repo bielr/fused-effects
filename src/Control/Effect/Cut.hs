@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {- | Provides an effect to delimit backtracking in a given nondeterministic context. This effect is used in concert with 'Control.Effect.NonDet.NonDet'.
 
@@ -46,7 +47,7 @@ data Cut m k where
 -- @
 --
 -- @since 0.1.2.0
-cutfail :: Has Cut sig m => m a
+cutfail :: Has Cut m => m a
 cutfail = send Cutfail
 {-# INLINE cutfail #-}
 
@@ -57,7 +58,7 @@ cutfail = send Cutfail
 -- @
 --
 -- @since 0.1.2.0
-call :: Has Cut sig m => m a -> m a
+call :: Has Cut m => m a -> m a
 call m = send (Call m)
 {-# INLINE call #-}
 
@@ -68,6 +69,6 @@ call m = send (Call m)
 -- @
 --
 -- @since 0.1.2.0
-cut :: (Alternative m, Has Cut sig m) => m ()
+cut :: (Alternative m, Has Cut m) => m ()
 cut = pure () <|> cutfail
 {-# INLINE cut #-}

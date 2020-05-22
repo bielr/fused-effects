@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -128,7 +129,8 @@ instance MonadTrans EmptyC where
   lift m = EmptyC $ \ _ leaf -> m >>= leaf
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (Empty :+: sig) (EmptyC m) where
+instance ThreadAlgebra (EmptyC Identity) ctx m => Algebra ctx (EmptyC m) where
+  type Sig (EmptyC m) = Empty :+: Sig m
   alg hdl sig ctx = EmptyC $ \ nil leaf -> case sig of
     L Empty -> nil
     R other -> thread (dst ~<~ hdl) other (pure ctx) >>= run . runEmpty (coerce nil) (coerce leaf)

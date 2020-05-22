@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {- | Provides an effect to cull choices in a given nondeterministic context. This effect is used in concert with 'Control.Effect.NonDet.NonDet'.
 
 Computations run inside a call to 'cull' will return at most one result.
@@ -35,6 +36,6 @@ data Cull m k where
 -- @
 --
 -- @since 0.1.2.0
-cull :: Has Cull sig m => m a -> m a
+cull :: Has Cull m => m a -> m a
 cull m = send (Cull m)
 {-# INLINE cull #-}

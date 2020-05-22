@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -101,7 +102,8 @@ instance MonadTrans (ErrorC e) where
   lift m = ErrorC $ \ _ leaf -> m >>= leaf
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (Error e :+: sig) (ErrorC e m) where
+instance ThreadAlgebra (ErrorC e Identity) ctx m => Algebra ctx (ErrorC e m) where
+  type Sig (ErrorC e m) = Error e :+: Sig m
   alg hdl sig ctx = ErrorC $ \ fail leaf -> case sig of
     L (L (Throw e))   -> fail e
     L (R (Catch m h)) -> runError (runError fail leaf . lower . h) leaf (lower m)

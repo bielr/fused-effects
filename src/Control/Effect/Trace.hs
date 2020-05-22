@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {- | An effect that provides a record of 'String' values ("traces") aggregate during the execution of a given computation.
 
@@ -31,6 +32,6 @@ data Trace (m :: Type -> Type) k where
 -- | Append a message to the trace log.
 --
 -- @since 0.1.0.0
-trace :: Has Trace sig m => String -> m ()
+trace :: Has Trace m => String -> m ()
 trace message = send (Trace message)
 {-# INLINE trace #-}

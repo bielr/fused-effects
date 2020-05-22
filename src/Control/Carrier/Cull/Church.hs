@@ -3,6 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -31,6 +32,7 @@ import Control.Monad.Fail as Fail
 import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Data.Functor.Identity (Identity)
 
 -- | Run a 'Cull' effect with continuations respectively interpreting '<|>', 'pure', and 'empty'. Branches outside of any 'cull' block will not be pruned.
 --
@@ -85,7 +87,8 @@ instance MonadTrans CullC where
   lift = CullC . lift . lift
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (Cull :+: NonDet :+: sig) (CullC m) where
+instance ThreadAlgebra (NonDetC Identity) ctx m => Algebra ctx (CullC m) where
+  type Sig (CullC m) = Cull :+: NonDet :+: Sig m
   alg hdl sig ctx = case sig of
     L (Cull m)       -> CullC (local (const True) (runCullC (hdl (m <$ ctx))))
     R (L (L Empty))  -> empty

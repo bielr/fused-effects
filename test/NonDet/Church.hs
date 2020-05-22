@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module NonDet.Church
 ( tests
 ) where
@@ -25,8 +26,8 @@ tests = testGroup "NonDet.Church"
     @?= (Right "a" :: Either Char String)
   ]
 
-state :: (Alternative m, Has (State Char) sig m) => m Char
+state :: (Alternative m, Has (State Char) m) => m Char
 state = pure 'z' <|> put 'b' *> get <|> get
 
-error :: (Alternative m, Has (Error Char) sig m) => m Char
+error :: (Alternative m, Has (Error Char) m) => m Char
 error = (pure 'z' <|> throwError 'a') `catchError` pure

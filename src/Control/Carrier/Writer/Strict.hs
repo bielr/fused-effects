@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -60,7 +61,8 @@ execWriter = fmap fst . runWriter
 newtype WriterC w m a = WriterC { runWriterC :: StateC w m a }
   deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance (Monoid w, Algebra sig m) => Algebra (Writer w :+: sig) (WriterC w m) where
+instance (Monoid w, ThreadAlgebra ((,) w) ctx m) => Algebra ctx (WriterC w m) where
+  type Sig (WriterC w m) = Writer w :+: Sig m
   alg hdl sig ctx = WriterC $ case sig of
     L writer -> StateC $ \ w -> case writer of
       Tell w'    -> do

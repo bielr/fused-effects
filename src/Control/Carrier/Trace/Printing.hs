@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -48,7 +49,8 @@ instance MonadTrans TraceC where
   lift = TraceC
   {-# INLINE lift #-}
 
-instance (MonadIO m, Algebra sig m) => Algebra (Trace :+: sig) (TraceC m) where
+instance (MonadIO m, Algebra ctx m) => Algebra ctx (TraceC m) where
+  type Sig (TraceC m) = Trace :+: Sig m
   alg hdl sig ctx = case sig of
     L (Trace s) -> ctx <$ liftIO (hPutStrLn stderr s)
     R other     -> TraceC (alg (runTrace . hdl) other ctx)

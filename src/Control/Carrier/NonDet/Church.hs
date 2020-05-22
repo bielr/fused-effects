@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -123,7 +124,8 @@ instance MonadTrans NonDetC where
   lift m = NonDetC (\ _ leaf _ -> m >>= leaf)
   {-# INLINE lift #-}
 
-instance Algebra sig m => Algebra (NonDet :+: sig) (NonDetC m) where
+instance ThreadAlgebra (NonDetC Identity) ctx m => Algebra ctx (NonDetC m) where
+  type Sig (NonDetC m) = NonDet :+: Sig m
   alg hdl sig ctx = NonDetC $ \ fork leaf nil -> case sig of
     L (L Empty)  -> nil
     L (R Choose) -> leaf (True <$ ctx) `fork` leaf (False <$ ctx)

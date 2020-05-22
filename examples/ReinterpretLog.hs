@@ -9,6 +9,7 @@
 -- * Finally, we will bridge the two with an effect carrier that reinterprets
 --   structured log messages as strings.
 
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -19,6 +20,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -54,7 +56,7 @@ renderLogMessage = \case
   Info  message -> "[info] "  ++ message
 
 -- The application: it logs two messages, then quits.
-application :: Has (Log Message) sig m => m ()
+application :: Has (Log Message) m => m ()
 application = do
   log (Debug "debug message")
   log (Info "info message")
@@ -80,7 +82,7 @@ data Log (a :: Type) (m :: Type -> Type) (k :: Type) where
 
 
 -- Log an 'a'.
-log :: Has (Log a) sig m => a -> m ()
+log :: Has (Log a) m => a -> m ()
 log x = send (Log x)
 
 
@@ -95,11 +97,12 @@ newtype LogStdoutC m a = LogStdoutC { runLogStdout :: m a }
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects (and also
      -- perform IO)...
-     ( Algebra sig m
+     ( Algebra ctx m
      , MonadIO m
      )
      -- ... the 'LogStdoutC m' monad can interpret 'Log String :+: sig' effects
-  => Algebra (Log String :+: sig) (LogStdoutC m) where
+  => Algebra ctx (LogStdoutC m) where
+  type Sig (LogStdoutC m) = Log String :+: Sig m
 
   alg hdl sig ctx = case sig of
     L (Log message) -> ctx <$ liftIO (putStrLn message)
@@ -115,10 +118,13 @@ newtype ReinterpretLogC s t m a = ReinterpretLogC { runReinterpretLogC :: Reader
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects, one of which
      -- is 'Log t'...
-     Has (Log t) sig m
+     ( Algebra ctx m
+     , Has (Log t) m
+     )
      -- ... the 'ReinterpretLogC s t m' monad can interpret 'Log s :+: sig'
      -- effects
-  => Algebra (Log s :+: sig) (ReinterpretLogC s t m) where
+  => Algebra ctx  (ReinterpretLogC s t m) where
+  type Sig (ReinterpretLogC s t m) = Log s :+: Sig m
 
   alg hdl sig ctx = ReinterpretLogC $ case sig of
     L (Log s) -> do
@@ -139,10 +145,13 @@ newtype CollectLogMessagesC s m a = CollectLogMessagesC { runCollectLogMessagesC
 
 instance
      -- So long as the 'm' monad can interpret the 'sig' effects...
-     Algebra sig m
+     ( Algebra ctx m
+     , Algebra ctx (WriterC [s] m)
+     )
      -- ...the 'CollectLogMessagesC s m' monad can interpret 'Log s :+: sig'
      -- effects
-  => Algebra (Log s :+: sig) (CollectLogMessagesC s m) where
+  => Algebra ctx (CollectLogMessagesC s m) where
+  type Sig (CollectLogMessagesC s m) = Log s :+: Sig m
 
   alg hdl sig ctx = CollectLogMessagesC $ case sig of
     L (Log s) -> ctx <$ tell [s]

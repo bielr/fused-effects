@@ -30,7 +30,7 @@ import           Control.Effect.Reader.Internal
 -- @
 --
 -- @since 1.0.2.0
-ask :: forall label r m sig . HasLabelled label (Reader r) sig m => m r
+ask :: forall label r m. HasLabelled label (Reader r) m => m r
 ask = runUnderLabel @label R.ask
 {-# INLINE ask #-}
 
@@ -41,7 +41,7 @@ ask = runUnderLabel @label R.ask
 -- @
 --
 -- @since 1.0.2.0
-asks :: forall label r m a sig . HasLabelled label (Reader r) sig m => (r -> a) -> m a
+asks :: forall label r m a. HasLabelled label (Reader r) m => (r -> a) -> m a
 asks f = runUnderLabel @label (R.asks f)
 {-# INLINE asks #-}
 
@@ -52,6 +52,6 @@ asks f = runUnderLabel @label (R.asks f)
 -- @
 --
 -- @since 1.0.2.0
-local :: forall label r m a sig . HasLabelled label (Reader r) sig m => (r -> r) -> m a -> m a
+local :: forall label r m a. HasLabelled label (Reader r) m => (r -> r) -> m a -> m a
 local f m = runUnderLabel @label (R.local f (UnderLabel m))
 {-# INLINE local #-}

@@ -33,7 +33,7 @@ import           Control.Effect.State.Internal
 -- @
 --
 -- @since 1.0.2.0
-get :: forall label s m sig . HasLabelled label (State s) sig m => m s
+get :: forall label s m. HasLabelled label (State s) m => m s
 get = runUnderLabel @label S.get
 {-# INLINEABLE get #-}
 
@@ -44,7 +44,7 @@ get = runUnderLabel @label S.get
 -- @
 --
 -- @since 1.0.2.0
-gets :: forall label s m a sig . HasLabelled label (State s) sig m => (s -> a) -> m a
+gets :: forall label s m a. HasLabelled label (State s) m => (s -> a) -> m a
 gets f = runUnderLabel @label (S.gets f)
 {-# INLINEABLE gets #-}
 
@@ -55,7 +55,7 @@ gets f = runUnderLabel @label (S.gets f)
 -- @
 --
 -- @since 1.0.2.0
-put :: forall label s m sig . HasLabelled label (State s) sig m => s -> m ()
+put :: forall label s m. HasLabelled label (State s) m => s -> m ()
 put s = runUnderLabel @label (S.put s)
 {-# INLINEABLE put #-}
 
@@ -67,7 +67,7 @@ put s = runUnderLabel @label (S.put s)
 -- @
 --
 -- @since 1.0.2.0
-modify :: forall label s m sig . HasLabelled label (State s) sig m => (s -> s) -> m ()
+modify :: forall label s m. HasLabelled label (State s) m => (s -> s) -> m ()
 modify f = runUnderLabel @label (S.modify f)
 {-# INLINEABLE modify #-}
 
@@ -79,7 +79,7 @@ modify f = runUnderLabel @label (S.modify f)
 -- @
 --
 -- @since 1.0.2.0
-modifyLazy :: forall label s m sig . HasLabelled label (State s) sig m => (s -> s) -> m ()
+modifyLazy :: forall label s m. HasLabelled label (State s) m => (s -> s) -> m ()
 modifyLazy f = runUnderLabel @label (S.modifyLazy f)
 {-# INLINEABLE modifyLazy #-}
 
@@ -90,6 +90,6 @@ modifyLazy f = runUnderLabel @label (S.modifyLazy f)
 -- @
 --
 -- @since 1.0.2.0
-state :: forall label s m a sig . HasLabelled label (State s) sig m => (s -> (s, a)) -> m a
+state :: forall label s m a. HasLabelled label (State s) m => (s -> (s, a)) -> m a
 state f = runUnderLabel @label (S.state f)
 {-# INLINEABLE state #-}

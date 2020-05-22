@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {- | A carrier for a 'Throw' effect.
@@ -34,7 +35,8 @@ runThrow (ThrowC m) = runError m
 newtype ThrowC e m a = ThrowC { runThrowC :: ErrorC e m a }
   deriving (Alternative, Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadPlus, MonadTrans)
 
-instance Algebra sig m => Algebra (Throw e :+: sig) (ThrowC e m) where
+instance (Functor ctx, Monad m, Algebra ctx (ErrorC e m)) => Algebra ctx (ThrowC e m) where
+  type Sig (ThrowC e m) = Throw e :+: Sig m
   alg hdl sig ctx = case sig of
     L (Throw e) -> ThrowC (throwError e)
     R other     -> ThrowC (alg (runThrowC . hdl) (R other) ctx)

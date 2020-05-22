@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -93,7 +94,8 @@ instance MonadTrans (InterpretC s sig) where
   lift = InterpretC
   {-# INLINE lift #-}
 
-instance (Reifies s (Interpreter eff m), Algebra sig m) => Algebra (eff :+: sig) (InterpretC s eff m) where
+instance (Reifies s (Interpreter eff m), Algebra ctx m) => Algebra ctx (InterpretC s eff m) where
+  type Sig (InterpretC s eff m) = eff :+: Sig m
   alg hdl = \case
     L eff   -> runInterpreter (getConst (reflect @s)) hdl eff
     R other -> InterpretC . alg (runInterpretC . hdl) other

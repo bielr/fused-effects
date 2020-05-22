@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -44,7 +46,9 @@ runError (ErrorC m) = runExceptT m
 
 -- | @since 0.1.0.0
 newtype ErrorC e m a = ErrorC (ExceptT e m a)
-  deriving (Algebra (Error e :+: sig), Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadTrans)
+  deriving (Applicative, Functor, Monad, Fail.MonadFail, MonadFix, MonadIO, MonadTrans)
+
+deriving instance (Algebra ctx m, Algebra ctx (ExceptT e m)) => Algebra ctx (ErrorC e m)
 
 -- | 'ErrorC' passes 'Alternative' operations along to the underlying monad @m@, rather than combining errors à la 'ExceptT'.
 instance (Alternative m, Monad m) => Alternative (ErrorC e m) where

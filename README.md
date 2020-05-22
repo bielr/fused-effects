@@ -66,7 +66,7 @@ Readers already familiar with effect systems may wish to start with the [usage](
 Setup, hidden from the rendered markdown.
 
 ```haskell
-{-# LANGUAGE ConstraintKinds, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeFamilies, UndecidableInstances #-}
 module Main (module Main) where
 
 import Control.Algebra
@@ -122,7 +122,7 @@ An additional module, `Control.Algebra`, provides the `Algebra` interface that c
 Each module under the `Control.Effect` hierarchy provides a set of functions that invoke effects, each mapping to a constructor of the underlying effect type. These functions are similar to, but more powerful than, those provided by `mtl`. In this example, we invoke the `get` and `put` functions provided by `Control.Effect.State`, first extracting the state and then updating it with a new value:
 
 ```haskell
-action1 :: Has (State String) sig m => m ()
+action1 :: Has (State String) m => m ()
 action1 = get >>= \ s -> put ("hello, " ++ s)
 ```
 
@@ -131,7 +131,7 @@ The `Has` constraint requires a given effect (here `State`) to be present in a _
 To add effects to a given computation, add more `Has` constraints to the signature/carrier pair `sig` and `m`. For example, to add a `Reader` effect managing an `Int`, we would write:
 
 ```haskell
-action2 :: (Has (State String) sig m, Has (Reader Int) sig m) => m ()
+action2 :: (Has (State String) m, Has (Reader Int) m) => m ()
 action2 = do
   i <- ask
   put (replicate i '!')
@@ -143,7 +143,7 @@ action2 = do
 Effects are run with _effect handlers_, specified as functions (generally starting with `run…`) unpacking some specific monad with a `Carrier` instance. For example, we can run a `State` computation using `runState`, imported from the `Control.Carrier.State.Strict` carrier module:
 
 ```haskell
-example1 :: Algebra sig m => [a] -> m (Int, ())
+example1 :: Algebra1 Functor m => [a] -> m (Int, ())
 example1 list = runState 0 $ do
   i <- get
   put (i + length list)
@@ -154,7 +154,7 @@ example1 list = runState 0 $ do
 Since this function returns a value in some carrier `m`, effect handlers can be chained to run multiple effects. Here, we get the list to compute the length of from a `Reader` effect:
 
 ```haskell
-example2 :: Algebra sig m => m (Int, ())
+example2 :: Algebra1 Functor m => m (Int, ())
 example2 = runReader "hello" . runState 0 $ do
   list <- ask
   put (length (list :: String))
