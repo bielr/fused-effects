@@ -13,8 +13,8 @@ module Bench.NonDet.NQueens (benchmark) where
 import Control.Applicative
 import Control.Monad (guard)
 import Data.Foldable
-import Data.List
-import Gauge hiding (benchmark)
+import qualified Data.List as List
+import Test.Tasty.Bench
 
 type Square = (Int,Int)
 type Board = [Int]
@@ -32,7 +32,7 @@ diags (i,j) = [ Row i
               , Forwardslash (i+j) ]
 
 isSafeIn :: Square -> Board -> Bool
-isSafeIn (i,j) qs = null (diags (i,j) `intersect` underThreat)
+isSafeIn (i, j) qs = null (diags (i, j) `List.intersect` underThreat)
   where
     qs' = zip [1..length qs] qs
     underThreat = qs' >>= diags

@@ -1,3 +1,15 @@
+# v1.1.1.1
+
+- Adds support for `ghc` 9.0 & `base` 4.15.
+
+
+# v1.1.1
+
+- Defines `MonadFix` instances for `Labelled` and `UnderLabel`. ([#402](https://github.com/fused-effects/fused-effects/pull/402))
+
+
+# v1.1
+
 - Adds a church-encoded `State` carrier in `Control.Carrier.State.Church`. ([#363](https://github.com/fused-effects/fused-effects/pull/363))
 
 - Adds a church-encoded `Error` carrier in `Control.Carrier.Error.Church`. ([#203](https://github.com/fused-effects/fused-effects/pull/203))
@@ -36,6 +48,11 @@
 - Redefines all effects as GADTs. Since we no longer require `Functor`, `HFunctor`, or `Effect` instances, we no longer need to use continuations to allow distinct result types per constructor. `Algebra` instances for these effects can be ported forwards by removing the continuations. User-defined effects are not impacted, but we recommend migrating to GADT definitions of them for convenience and ease of comprehension going forwards. ([#365](https://github.com/fused-effects/fused-effects/pull/365))
 
 - Removes `Control.Carrier.State.Lazy.runStateC`, which was supposed to have been removed in 1.0.
+
+
+# v1.0.2.2
+
+- Adds support for `ghc` 8.10 & `base` 4.14. ([#376](https://github.com/fused-effects/fused-effects/pull/376))
 
 
 # v1.0.2.0

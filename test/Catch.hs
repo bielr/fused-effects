@@ -10,8 +10,6 @@ module Catch
 
 import Control.Effect.Error
 import Gen
-import Test.Tasty
-import Test.Tasty.Hedgehog
 
 tests :: TestTree
 tests = testGroup "Catch"
