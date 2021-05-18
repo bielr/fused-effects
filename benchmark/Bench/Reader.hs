@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 module Bench.Reader
 ( benchmark
@@ -36,10 +37,10 @@ benchmark = bgroup "Reader"
   where
   n = 100000
 
-asking :: Has (Reader Char) sig m => Int -> m ()
+asking :: Has (Reader Char) m => Int -> m ()
 asking i = replicateM_ i (ask @Char)
 {-# INLINE asking #-}
 
-locally :: Has (Reader Char) sig m => Int -> m ()
+locally :: Has (Reader Char) m => Int -> m ()
 locally i = replicateM_ i (local @Char succ (ask @Char))
 {-# INLINE locally #-}

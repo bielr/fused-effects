@@ -32,5 +32,5 @@ throwError = send . Throw
 -- | Lifts an @'Either' e@ into Monad m with effect @'Throw' e@
 --
 -- @since 1.1.0.0
-liftEither :: Has (Throw e) sig m => Either e a -> m a
+liftEither :: Has (Throw e) m => Either e a -> m a
 liftEither = either throwError return

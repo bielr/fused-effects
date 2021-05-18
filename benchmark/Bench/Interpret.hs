@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -42,6 +43,6 @@ benchmark = bgroup "Interpret"
   where
   n = 100000
 
-modLoop :: Has (State Int) sig m => Int -> m ()
+modLoop :: Has (State Int) m => Int -> m ()
 modLoop i = for_ [1..i] (modify . (+))
 {-# INLINE modLoop #-}

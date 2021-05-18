@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Bench.State
 ( benchmark
 ) where
@@ -31,6 +32,6 @@ benchmark = bgroup "State"
   from = 0 :: Int
   n = 100000
 
-modLoop :: Has (State Int) sig m => Int -> m ()
+modLoop :: Has (State Int) m => Int -> m ()
 modLoop i = for_ [1..i] (modify . (+))
 {-# INLINE modLoop #-}

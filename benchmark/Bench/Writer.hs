@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 module Bench.Writer
 ( benchmark
@@ -40,6 +41,6 @@ benchmark = bgroup "Writer"
   where
   n = 1000000
 
-tellLoop :: Has (Writer (Sum Int)) sig m => Int -> m ()
+tellLoop :: Has (Writer (Sum Int)) m => Int -> m ()
 tellLoop i = replicateM_ i (tell (Sum (1 :: Int)))
 {-# INLINE tellLoop #-}

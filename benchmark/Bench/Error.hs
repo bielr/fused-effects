@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 module Bench.Error
 ( benchmark
@@ -26,6 +27,6 @@ benchmark = bgroup "Error"
   where
   n = 100000
 
-errorLoop :: Has (Error Int) sig m => Int -> m ()
+errorLoop :: Has (Error Int) m => Int -> m ()
 errorLoop i = for_ [1..i] (\ i -> throwError i `catchError` pure @_ @Int)
 {-# INLINE errorLoop #-}
