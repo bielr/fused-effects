@@ -108,7 +108,7 @@ instance (Monad m, forall ctx. c ctx => Algebra ctx m) => Algebra1 c m
 --
 -- @since 1.1.0.0
 thread
-  :: ThreadAlgebra ctx1 ctx2 m
+  :: Algebra (Compose ctx1 ctx2) m
   => Handler (Compose ctx1 ctx2) n m
   -> Sig m n a
   -> ctx1 (ctx2 ())
